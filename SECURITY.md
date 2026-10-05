@@ -18,15 +18,3 @@ Aplikasi web **Nexa** dikembangkan sebagai tugas praktikum akademik dan saat ini
 
 2. **Keamanan Cloud Firestore:**
    Akses membaca dan menulis data pengguna diatur menggunakan aturan autentikasi berbasis pengguna (*User Authentication Rules*).
-
----
-
-## 📩 Pelaporan Celah Keamanan (Reporting a Vulnerability)
-
-Jika Anda menemukan celah keamanan (*bug* atau *vulnerability*) pada aplikasi ini, silakan laporkan melalui:
-
-* **Pengembang:** Widiya Astuti
-* **Email:** widiyaastuti168z@gmail.com
-* **Repository:** [github.com/xyzw168/nexa-academic](https://github.com/xyzw168/nexa-academic)
-
-Laporan akan ditinjau dalam waktu maksimal 1x24 jam.
