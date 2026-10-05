@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexa - Academic Focus Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Background Ambient Glows -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="ios-wrapper">
+        <!-- Status Bar Header -->
+        <header class="ios-status-bar">
+            <span class="app-logo"><i class="fa-solid fa-sparkles"></i> Nexa</span>
+            <span class="ios-badge"><i class="fa-solid fa-bolt"></i> iOS 26 Liquid Glass</span>
+        </header>
+
+        <!-- Main Glass Container -->
+        <main class="ios-glass-card">
+            <!-- TAB 1: TASKS & PROYEK -->
+            <section id="tasksTab" class="tab-content active">
+                <div class="section-title">
+                    <h2>Tugas & Proyek</h2>
+                    <p class="subtitle">Manajemen waktu terstruktur</p>
+                </div>
+
+                <!-- Form Tambah Tugas -->
+                <form id="taskForm" onsubmit="handleAddTask(event)" class="glass-form">
+                    <div class="input-row">
+                        <input type="text" id="taskTitle" placeholder="Nama Tugas..." required class="ios-input">
+                        <input type="text" id="taskCourse" placeholder="Mata Kuliah..." required class="ios-input">
+                    </div>
+                    <div class="input-row" style="margin-top: 10px;">
+                        <select id="taskPriority" class="ios-input">
+                            <option value="Low">🟢 Prioritas Rendah</option>
+                            <option value="Medium" selected>🟡 Prioritas Sedang</option>
+                            <option value="High">🔴 Prioritas Tinggi</option>
+                        </select>
+                        <button type="submit" class="ios-btn-primary"><i class="fa-solid fa-plus"></i> Tambah</button>
+                    </div>
+                </form>
+
+                <!-- Filter Pills -->
+                <div class="filter-pills">
+                    <button class="pill active" onclick="filterTasks('All', this)">Semua</button>
+                    <button class="pill" onclick="filterTasks('High', this)">Tinggi</button>
+                    <button class="pill" onclick="filterTasks('Medium', this)">Sedang</button>
+                    <button class="pill" onclick="filterTasks('Low', this)">Rendah</button>
+                </div>
+
+                <!-- Task List -->
+                <div id="taskList" class="task-list"></div>
+            </section>
+
+            <!-- TAB 2: POMODORO TIMER -->
+            <section id="pomodoroTab" class="tab-content">
+                <div class="section-title">
+                    <h2>Focus Station</h2>
+                    <p class="subtitle">Teknik Pomodoro 25 Menit</p>
+                </div>
+
+                <div class="pomo-glass-box">
+                    <div class="ring-timer">
+                        <svg class="progress-ring" width="220" height="220">
+                            <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="12" fill="transparent" r="90" cx="110" cy="110"/>
+                            <circle id="timerCircle" class="progress-ring__circle" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" fill="transparent" r="90" cx="110" cy="110"/>
+                        </svg>
+                        <div class="timer-text" id="timerDisplay">25:00</div>
+                    </div>
+
+                    <div class="pomo-controls">
+                        <button id="startTimerBtn" onclick="toggleTimer()" class="ios-btn-primary big-btn">
+                            <i class="fa-solid fa-play"></i> Mulai Fokus
+                        </button>
+                        <button onclick="resetTimer()" class="ios-btn-glass"><i class="fa-solid fa-rotate-left"></i></button>
+                    </div>
+
+                    <div class="pomo-counter">
+                        <span>Sesi Selesai Hari Ini:</span>
+                        <span id="pomoCount" class="badge-count">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: STATS -->
+            <section id="statsTab" class="tab-content">
+                <div class="section-title">
+                    <h2>Ringkasan Progres</h2>
+                    <p class="subtitle">Analitik produktivitas otomatis</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-list-check icon-blue"></i>
+                        <span class="stat-val" id="statTotal">0</span>
+                        <span class="stat-lbl">Total Tugas</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-circle-check icon-green"></i>
+                        <span class="stat-val" id="statCompleted">0</span>
+                        <span class="stat-lbl">Selesai</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-chart-line icon-purple"></i>
+                        <span class="stat-val" id="statRate">0%</span>
+                        <span class="stat-lbl">Produktivitas</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Floating Tab Bar -->
+        <nav class="ios-tab-bar">
+            <button class="tab-item active" onclick="switchTab('tasks', this)">
+                <i class="fa-solid fa-square-check"></i>
+                <span>Tugas</span>
+            </button>
+            <button class="tab-item" onclick="switchTab('pomodoro', this)">
+                <i class="fa-solid fa-clock"></i>
+                <span>Fokus</span>
+            </button>
+            <button class="tab-item" onclick="switchTab('stats', this)">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Progres</span>
+            </button>
+        </nav>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
