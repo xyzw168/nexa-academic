@@ -3,56 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexa - Academic Hub</title>
+    <title>Nexa - Academic Focus Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (v10 HTML Script Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-ergpCw7j5iAZKM9EjajVY-KvaDkA0Jw",
+            authDomain: "nexa-academic.firebaseapp.com",
+            projectId: "nexa-academic",
+            storageBucket: "nexa-academic.firebasestorage.app",
+            messagingSenderId: "705232349976",
+            appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
+            measurementId: "G-FLJSHK0P8Q"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global Firebase functions
+        window.fbRegister = async (email, pass) => {
+            try {
+                const res = await createUserWithEmailAndPassword(auth, email, pass);
+                await setDoc(doc(db, "users", res.user.uid), window.state);
+                alert("Registrasi berhasil & data disinkronkan!");
+            } catch (err) { alert("Gagal daftar: " + err.message); }
+        };
+
+        window.fbLogin = async (email, pass) => {
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                alert("Login berhasil!");
+            } catch (err) { alert("Gagal login: " + err.message); }
+        };
+
+        window.fbLogout = async () => {
+            await signOut(auth);
+            alert("Logout berhasil!");
+            location.reload();
+        };
+
+        window.saveToFirebase = async () => {
+            if (auth.currentUser) {
+                try {
+                    await setDoc(doc(db, "users", auth.currentUser.uid), window.state);
+                } catch(e) { console.error("Cloud sync error", e); }
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            const userStatusEl = document.getElementById('userStatusText');
+            const authBtns = document.getElementById('authActionButtons');
+            if (user) {
+                if(userStatusEl) userStatusEl.innerText = `Online: ${user.email}`;
+                if(authBtns) authBtns.innerHTML = `<button onclick="fbLogout()" class="bg-red-500/20 text-red-300 border border-red-500/30 px-3 py-1 rounded-xl text-xs font-bold">Logout</button>`;
+                
+                // Pull Cloud Data
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists()) {
+                    window.state = docSnap.data();
+                    window.renderAll();
+                }
+            } else {
+                if(userStatusEl) userStatusEl.innerText = "Mode Tamu (Lokal)";
+                if(authBtns) authBtns.innerHTML = `<button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login / Daftar</button>`;
+            }
+        });
+    </script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        ios: {
-                            bg: '#090d16',
-                            glass: 'rgba(30, 41, 59, 0.45)',
-                            border: 'rgba(255, 255, 255, 0.12)',
-                            blue: '#38bdf8',
-                            accent: '#0284c7'
-                        }
+                        ios: { bg: '#090d16', glass: 'rgba(30, 41, 59, 0.45)', border: 'rgba(255, 255, 255, 0.12)', blue: '#38bdf8' }
                     },
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
-                    }
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'] }
                 }
             }
         }
     </script>
     <style>
-        body {
-            background-color: #090d16;
-            color: #f8fafc;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            overflow-x: hidden;
-        }
+        body { background-color: #090d16; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #090d16; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
-
-        .ambient-glow {
-            position: fixed; border-radius: 50%; filter: blur(120px); z-index: 0; opacity: 0.35; pointer-events: none;
-        }
+        .ambient-glow { position: fixed; border-radius: 50%; filter: blur(120px); z-index: 0; opacity: 0.35; pointer-events: none; }
         .glow-1 { width: 450px; height: 450px; background: radial-gradient(circle, #38bdf8, #818cf8); top: -100px; left: -100px; }
         .glow-2 { width: 500px; height: 500px; background: radial-gradient(circle, #c084fc, #e879f9); bottom: -150px; right: -100px; }
-
-        .liquid-glass {
-            background: rgba(30, 41, 59, 0.45);
-            backdrop-filter: blur(25px) saturate(180%);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        }
+        .liquid-glass { background: rgba(30, 41, 59, 0.45); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); }
         .perspective-1000 { perspective: 1000px; }
         .transform-style-3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
         .backface-hidden { backface-visibility: hidden; }
@@ -67,10 +115,10 @@
     <!-- Sidebar Navigation -->
     <aside class="w-full md:w-72 liquid-glass flex-shrink-0 md:min-h-screen p-6 flex flex-col justify-between z-20 sticky top-0 md:relative rounded-b-3xl md:rounded-r-3xl md:rounded-b-none">
         <div>
-            <!-- Brand Logo -->
-            <div class="flex items-center justify-between mb-8">
+            <!-- Brand Logo & User Status -->
+            <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl shadow-lg shadow-sky-500/30 text-white">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl shadow-lg text-white">
                         ⚡
                     </div>
                     <div>
@@ -80,24 +128,30 @@
                 </div>
             </div>
 
+            <!-- Auth Status Banner -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-6 flex items-center justify-between text-xs">
+                <span id="userStatusText" class="text-slate-300 font-medium truncate max-w-[140px]">Memuat status...</span>
+                <div id="authActionButtons"></div>
+            </div>
+
             <!-- Navigation Links -->
             <nav class="space-y-2" id="navContainer">
-                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-sky-400 bg-white/10 border border-white/15 shadow-md">
+                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-sky-400 bg-white/10 border border-white/15">
                     <i class="fa-solid fa-square-check text-base"></i> Task Matrix
                 </button>
-                <button onclick="switchTab('pomodoro')" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+                <button onclick="switchTab('pomodoro')" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
                     <i class="fa-solid fa-clock text-base"></i> Focus Station
                 </button>
-                <button onclick="switchTab('habits')" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+                <button onclick="switchTab('habits')" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
                     <i class="fa-solid fa-fire text-base"></i> Habit Tracker
                 </button>
-                <button onclick="switchTab('flashcards')" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+                <button onclick="switchTab('flashcards')" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
                     <i class="fa-solid fa-brain text-base"></i> Smart Flashcards
                 </button>
-                <button onclick="switchTab('budget')" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+                <button onclick="switchTab('budget')" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
                     <i class="fa-solid fa-wallet text-base"></i> Daily Safe-Spend
                 </button>
-                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
                     <i class="fa-solid fa-chart-pie text-base"></i> Analytics & Score
                 </button>
             </nav>
@@ -123,7 +177,7 @@
     <!-- Main Content Container -->
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10">
 
-        <!-- ================= TAB 1: TASK MATRIX ================= -->
+        <!-- TAB 1: TASK MATRIX -->
         <section id="tab-tasks" class="tab-page space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -133,12 +187,11 @@
                     </h2>
                     <p class="text-xs text-slate-400 mt-1">Kelola tugas kuliah berdasarkan skala prioritas dan subtasks.</p>
                 </div>
-                <button onclick="openTaskModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg shadow-sky-500/25 text-xs flex items-center gap-2 transition-all active:scale-95">
+                <button onclick="openTaskModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Tambah Tugas Baru
                 </button>
             </div>
 
-            <!-- Filter Controls -->
             <div class="liquid-glass p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 text-xs">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-slate-400 font-medium text-[11px] uppercase tracking-wider mr-1">Prioritas:</span>
@@ -152,39 +205,24 @@
                 </select>
             </div>
 
-            <!-- Task Board Columns -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Column: TODO -->
                 <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
                     <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-                            <h3 class="font-bold text-xs text-slate-200">Belum Dimulai</h3>
-                        </div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400"></span><h3 class="font-bold text-xs text-slate-200">Belum Dimulai</h3></div>
                         <span id="count-todo" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
                     <div id="col-todo" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
                 </div>
-
-                <!-- Column: IN PROGRESS -->
                 <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
                     <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-sky-400 animate-pulse"></span>
-                            <h3 class="font-bold text-xs text-slate-200">Sedang Dikerjakan</h3>
-                        </div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400 animate-pulse"></span><h3 class="font-bold text-xs text-slate-200">Sedang Dikerjakan</h3></div>
                         <span id="count-inprogress" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
                     <div id="col-inprogress" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
                 </div>
-
-                <!-- Column: DONE -->
                 <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
                     <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-                            <h3 class="font-bold text-xs text-slate-200">Selesai</h3>
-                        </div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span><h3 class="font-bold text-xs text-slate-200">Selesai</h3></div>
                         <span id="count-done" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
                     <div id="col-done" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
@@ -192,7 +230,7 @@
             </div>
         </section>
 
-        <!-- ================= TAB 2: POMODORO FOCUS STATION ================= -->
+        <!-- TAB 2: POMODORO FOCUS STATION -->
         <section id="tab-pomodoro" class="tab-page hidden space-y-6">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight text-white">Focus Station & Soundscape</h2>
@@ -200,15 +238,12 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Main Timer Box -->
                 <div class="lg:col-span-2 liquid-glass p-8 rounded-3xl flex flex-col items-center justify-center text-center relative">
                     <div class="flex gap-2 mb-8 bg-slate-900/60 p-1.5 rounded-2xl border border-white/10">
-                        <button onclick="setPomoMode('work')" id="pomo-mode-work" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-sky-500 text-slate-950 shadow-md">Fokus (25m)</button>
-                        <button onclick="setPomoMode('shortBreak')" id="pomo-mode-shortBreak" class="px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">Istirahat Pendek (5m)</button>
-                        <button onclick="setPomoMode('longBreak')" id="pomo-mode-longBreak" class="px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">Istirahat Panjang (15m)</button>
+                        <button onclick="setPomoMode('work')" id="pomo-mode-work" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 shadow-md">Fokus (25m)</button>
+                        <button onclick="setPomoMode('shortBreak')" id="pomo-mode-shortBreak" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat (5m)</button>
+                        <button onclick="setPomoMode('longBreak')" id="pomo-mode-longBreak" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat Panjang (15m)</button>
                     </div>
-
-                    <!-- Ring Display -->
                     <div class="relative w-64 h-64 flex items-center justify-center my-2">
                         <svg class="w-full h-full transform -rotate-90">
                             <circle cx="128" cy="128" r="110" stroke="rgba(255,255,255,0.1)" stroke-width="12" fill="transparent" />
@@ -219,359 +254,236 @@
                             <span id="pomoStatusText" class="text-[10px] font-bold text-sky-400 uppercase tracking-widest mt-2">Mode Fokus</span>
                         </div>
                     </div>
-
-                    <!-- Controls -->
                     <div class="flex items-center gap-4 mt-8">
-                        <button onclick="togglePomoTimer()" id="pomoStartBtn" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-sm font-bold px-8 py-3.5 rounded-2xl shadow-xl shadow-sky-500/25 transition-all active:scale-95">
-                            Mulai Sesi
-                        </button>
-                        <button onclick="resetPomoTimer()" class="bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold px-5 py-3.5 rounded-2xl border border-white/10">
-                            Reset
-                        </button>
+                        <button onclick="togglePomoTimer()" id="pomoStartBtn" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-sm font-bold px-8 py-3.5 rounded-2xl shadow-xl">Mulai Sesi</button>
+                        <button onclick="resetPomoTimer()" class="bg-white/10 text-slate-200 text-xs font-semibold px-5 py-3.5 rounded-2xl border border-white/10">Reset</button>
                     </div>
-
-                    <div class="mt-6 text-xs text-slate-400 font-medium">
-                        Total Sesi Hari Ini: <span id="pomoCompletedCount" class="text-sky-400 font-bold">0</span> Sesi
-                    </div>
+                    <div class="mt-6 text-xs text-slate-400 font-medium">Total Sesi Hari Ini: <span id="pomoCompletedCount" class="text-sky-400 font-bold">0</span> Sesi</div>
                 </div>
 
-                <!-- Ambient Synthesizer -->
                 <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between space-y-6">
                     <div>
-                        <h3 class="font-bold text-sm text-slate-100 mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-sliders text-sky-400"></i> Synthesizer Suara Latar
-                        </h3>
-                        <p class="text-xs text-slate-400 mb-6">Suara alam matematis untuk menambah kejernihan konsentrasi.</p>
-
+                        <h3 class="font-bold text-sm text-slate-100 mb-1 flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> Synthesizer Suara Latar</h3>
+                        <p class="text-xs text-slate-400 mb-6">Suara alam matematis untuk kejernihan konsentrasi.</p>
                         <div class="space-y-4">
-                            <!-- Rain Noise -->
-                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-slate-200">Deru Hujan Alami</span>
-                                    <button onclick="toggleAmbientSound('rain')" id="btn-sound-rain" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
-                                </div>
-                                <input type="range" id="vol-rain" min="0" max="1" step="0.05" value="0.3" onchange="adjustSoundVolume('rain')" class="w-full accent-sky-400 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
+                                <span class="text-xs font-semibold text-slate-200">Deru Hujan</span>
+                                <button onclick="toggleAmbientSound('rain')" id="btn-sound-rain" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
                             </div>
-
-                            <!-- Alpha Waves -->
-                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-slate-200">Alpha Wave (10Hz)</span>
-                                    <button onclick="toggleAmbientSound('binaural')" id="btn-sound-binaural" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
-                                </div>
-                                <input type="range" id="vol-binaural" min="0" max="1" step="0.05" value="0.2" onchange="adjustSoundVolume('binaural')" class="w-full accent-sky-400 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
+                                <span class="text-xs font-semibold text-slate-200">Alpha Wave (10Hz)</span>
+                                <button onclick="toggleAmbientSound('binaural')" id="btn-sound-binaural" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
                             </div>
                         </div>
                     </div>
-
-                    <div class="p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-[11px] text-sky-300 flex items-center gap-2">
-                        <i class="fa-solid fa-circle-info"></i> Gunakan earphone untuk hasil Gelombang Alpha maksimal.
-                    </div>
+                    <div class="p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-[11px] text-sky-300"><i class="fa-solid fa-circle-info"></i> Gunakan earphone untuk efek maksimal.</div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= TAB 3: HABIT TRACKER ================= -->
+        <!-- TAB 3: HABIT TRACKER -->
         <section id="tab-habits" class="tab-page hidden space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold tracking-tight text-white">Habit & Study Streak Tracker</h2>
                     <p class="text-xs text-slate-400 mt-1">Bangun konsistensi belajar harian dengan perhitungan streak otomatis.</p>
                 </div>
-                <button onclick="openHabitModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg shadow-sky-500/25 text-xs flex items-center gap-2 transition-all active:scale-95">
+                <button onclick="openHabitModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Kebiasaan Baru
                 </button>
             </div>
-
             <div id="habitsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </section>
 
-        <!-- ================= TAB 4: FLASHCARDS ================= -->
+        <!-- TAB 4: FLASHCARDS -->
         <section id="tab-flashcards" class="tab-page hidden space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold tracking-tight text-white">Smart Flashcards 3D</h2>
                     <p class="text-xs text-slate-400 mt-1">Metode latihan daya ingat berbasis kartu 3D flip.</p>
                 </div>
-                <button onclick="openFlashcardModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg shadow-sky-500/25 text-xs flex items-center gap-2 transition-all active:scale-95">
-                    <i class="fa-solid fa-plus"></i> Tambah Kartu Baru
+                <button onclick="openFlashcardModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Tambah Kartu
                 </button>
             </div>
-
             <div class="max-w-xl mx-auto space-y-6">
                 <div id="flashcardDeckArea" class="perspective-1000">
-                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-8 min-h-[280px] flex flex-col justify-between cursor-pointer relative shadow-2xl border border-white/20 hover:border-sky-500/50 transition-all">
+                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-8 min-h-[280px] flex flex-col justify-between cursor-pointer relative shadow-2xl border border-white/20">
                         <div id="cardFront" class="backface-hidden flex flex-col items-center justify-center text-center my-auto">
                             <span id="cardDeckTag" class="text-[10px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full mb-4">Materi</span>
-                            <p id="cardQuestionText" class="text-base font-semibold text-slate-100">Tekan 'Tambah Kartu Baru' untuk mulai membuat rangkuman.</p>
+                            <p id="cardQuestionText" class="text-base font-semibold text-slate-100">Tekan 'Tambah Kartu' untuk membuat materi baru.</p>
                             <span class="text-[11px] text-slate-500 mt-6 font-medium">Klik untuk membalik kartu 🔄</span>
                         </div>
                         <div id="cardBack" class="backface-hidden rotate-y-180 absolute inset-0 p-8 flex flex-col items-center justify-center text-center bg-slate-900/95 rounded-3xl border border-white/20">
                             <span class="text-[10px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-4">Jawaban</span>
-                            <p id="cardAnswerText" class="text-sm text-slate-200">Penjelasan detail akan muncul di sini.</p>
+                            <p id="cardAnswerText" class="text-sm text-slate-200">Penjelasan detail muncul di sini.</p>
                         </div>
                     </div>
                 </div>
-
                 <div class="flex items-center justify-center gap-3">
-                    <button onclick="rateRecall('hard')" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold hover:bg-red-500/20 transition-all">Sulit 🔴</button>
-                    <button onclick="rateRecall('medium')" class="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold hover:bg-amber-500/20 transition-all">Sedang 🟡</button>
-                    <button onclick="rateRecall('easy')" class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold hover:bg-emerald-500/20 transition-all">Mudah 🟢</button>
+                    <button onclick="rateRecall('hard')" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold">Sulit 🔴</button>
+                    <button onclick="rateRecall('medium')" class="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold">Sedang 🟡</button>
+                    <button onclick="rateRecall('easy')" class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">Mudah 🟢</button>
                 </div>
             </div>
         </section>
 
-        <!-- ================= TAB 5: DAILY SAFE-SPEND ================= -->
+        <!-- TAB 5: DAILY SAFE-SPEND -->
         <section id="tab-budget" class="tab-page hidden space-y-6">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight text-white">Daily Safe-Spend Calculator</h2>
-                <p class="text-xs text-slate-400 mt-1">Kalkulator pengeluaran harian aman mahasiswa agar tidak kehabisan uang di akhir bulan.</p>
+                <p class="text-xs text-slate-400 mt-1">Kalkulator pengeluaran harian aman mahasiswa.</p>
             </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Calculator Inputs -->
                 <div class="liquid-glass p-6 rounded-3xl space-y-4">
                     <h3 class="font-bold text-sm text-slate-200">Hitung Limit Harian</h3>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Sisa Saldo Saat Ini (Rp)</label>
-                        <input type="number" id="bgBalance" value="1500000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Jumlah Hari Tersisa Bulan Ini</label>
-                        <input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Target Tabungan (Rp)</label>
-                        <input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500">
-                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Sisa Saldo (Rp)</label><input type="number" id="bgBalance" value="1500000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
+                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Hari Tersisa</label><input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
+                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Target Tabungan (Rp)</label><input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
                 </div>
-
-                <!-- Display Results -->
                 <div class="lg:col-span-2 liquid-glass p-8 rounded-3xl flex flex-col justify-between text-center">
                     <div>
                         <span class="text-xs uppercase tracking-widest text-slate-400 font-semibold">Batas Aman Belanja Per Hari</span>
                         <h3 id="bgSafeSpendDisplay" class="text-4xl font-extrabold text-sky-400 mt-2">Rp 65.000 / hari</h3>
-                        <p id="bgStatusAdvice" class="text-xs text-emerald-400 font-semibold mt-2">Status: Aman untuk pengeluaran wajar harian.</p>
+                        <p id="bgStatusAdvice" class="text-xs text-emerald-400 font-semibold mt-2">Status: Aman untuk pengeluaran harian.</p>
                     </div>
-
                     <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/10">
-                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
-                            <span class="text-[10px] text-slate-400 font-semibold">Total Saldo Bersih</span>
-                            <p id="bgNetBalanceDisplay" class="text-base font-bold text-slate-200 mt-1">Rp 1.300.000</p>
-                        </div>
-                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
-                            <span class="text-[10px] text-slate-400 font-semibold">Alokasi Tabungan</span>
-                            <p id="bgSavingsDisplay" class="text-base font-bold text-amber-400 mt-1">Rp 200.000</p>
-                        </div>
+                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5"><span class="text-[10px] text-slate-400 font-semibold">Saldo Bersih</span><p id="bgNetBalanceDisplay" class="text-base font-bold text-slate-200 mt-1">Rp 1.300.000</p></div>
+                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5"><span class="text-[10px] text-slate-400 font-semibold">Tabungan</span><p id="bgSavingsDisplay" class="text-base font-bold text-amber-400 mt-1">Rp 200.000</p></div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= TAB 6: ANALYTICS ================= -->
+        <!-- TAB 6: ANALYTICS -->
         <section id="tab-analytics" class="tab-page hidden space-y-6">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight text-white">Analytics & Productivity Score</h2>
-                <p class="text-xs text-slate-400 mt-1">Ringkasan statistik evaluasi produktivitas harian Anda.</p>
+                <p class="text-xs text-slate-400 mt-1">Ringkasan statistik produktivitas harian Anda.</p>
             </div>
-
-            <!-- Top Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div class="liquid-glass p-6 rounded-3xl">
-                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Skor Produktivitas</span>
-                    <div class="flex items-baseline gap-2 mt-2">
-                        <span id="scoreValue" class="text-4xl font-extrabold text-sky-400">85</span>
-                        <span class="text-xs text-emerald-400 font-bold">/ 100 PTS</span>
-                    </div>
-                </div>
-
-                <div class="liquid-glass p-6 rounded-3xl">
-                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Tugas Selesai</span>
-                    <div class="flex items-baseline gap-2 mt-2">
-                        <span id="analyticsTasksCompleted" class="text-4xl font-extrabold text-emerald-400">0</span>
-                        <span class="text-xs text-slate-400 font-medium">Tugas</span>
-                    </div>
-                </div>
-
-                <div class="liquid-glass p-6 rounded-3xl">
-                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Fokus Pomodoro</span>
-                    <div class="flex items-baseline gap-2 mt-2">
-                        <span id="analyticsPomoMinutes" class="text-4xl font-extrabold text-amber-400">0</span>
-                        <span class="text-xs text-slate-400 font-medium">Menit</span>
-                    </div>
-                </div>
+                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Skor Produktivitas</span><div class="flex items-baseline gap-2 mt-2"><span id="scoreValue" class="text-4xl font-extrabold text-sky-400">85</span><span class="text-xs text-emerald-400 font-bold">/ 100 PTS</span></div></div>
+                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Tugas Selesai</span><div class="flex items-baseline gap-2 mt-2"><span id="analyticsTasksCompleted" class="text-4xl font-extrabold text-emerald-400">0</span><span class="text-xs text-slate-400 font-medium">Tugas</span></div></div>
+                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Total Fokus</span><div class="flex items-baseline gap-2 mt-2"><span id="analyticsPomoMinutes" class="text-4xl font-extrabold text-amber-400">0</span><span class="text-xs text-slate-400 font-medium">Menit</span></div></div>
             </div>
-
-            <!-- Canvas Visualization Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between">
-                    <h3 class="font-bold text-xs text-slate-200 mb-4">Grafik Penyelesaian Tugas Harian</h3>
-                    <div class="w-full h-64">
-                        <canvas id="tasksChart" class="w-full h-full"></canvas>
-                    </div>
-                </div>
-
-                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between">
-                    <h3 class="font-bold text-xs text-slate-200 mb-4">Distribusi Fokus Sesi</h3>
-                    <div class="w-full h-64 flex items-center justify-center">
-                        <canvas id="pomoChart" class="w-full h-full"></canvas>
-                    </div>
-                </div>
+                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between"><h3 class="font-bold text-xs text-slate-200 mb-4">Grafik Tugas Harian</h3><div class="w-full h-64"><canvas id="tasksChart" class="w-full h-full"></canvas></div></div>
+                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between"><h3 class="font-bold text-xs text-slate-200 mb-4">Distribusi Sesi Fokus</h3><div class="w-full h-64 flex items-center justify-center"><canvas id="pomoChart" class="w-full h-full"></canvas></div></div>
             </div>
         </section>
 
     </main>
 
-    <!-- ================= MODALS ================= -->
-    <!-- Task Modal -->
+    <!-- AUTH MODAL (LOGIN & DAFTAR FIREBASE) -->
+    <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
+            <h3 class="text-base font-bold text-white text-center">Login / Daftar Account Nexa</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
+                    <input type="email" id="authEmail" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="email@contoh.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                    <input type="password" id="authPassword" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Minimal 6 karakter">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button onclick="handleLogin()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-500 text-slate-950">Masuk (Login)</button>
+                <button onclick="handleRegister()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 text-white border border-white/10">Daftar Baru</button>
+            </div>
+            <button onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-500 pt-2">Tutup</button>
+        </div>
+    </div>
+
+    <!-- MODALS UTILITY (TASK, HABIT, FLASHCARD) -->
     <div id="modalTask" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
             <h3 class="text-base font-bold text-white">Tambah Tugas Baru</h3>
             <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Judul Tugas</label>
-                    <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500" placeholder="Laporan Praktikum Web...">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Mata Kuliah</label>
-                    <input type="text" id="inputTaskCourse" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500" placeholder="Pemrograman Web">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Skala Prioritas</label>
-                    <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500">
-                        <option value="HIGH">Tinggi (Mendesak & Penting)</option>
-                        <option value="MEDIUM" selected>Sedang (Penting, Tidak Mendesak)</option>
-                        <option value="LOW">Rendah (Rutin / Tambahan)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Subtasks (Pisahkan Komma)</label>
-                    <input type="text" id="inputTaskSubtasks" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500" placeholder="Bab 1, Bab 2, Kesimpulan">
-                </div>
+                <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Judul Tugas...">
+                <input type="text" id="inputTaskCourse" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Mata Kuliah...">
+                <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white">
+                    <option value="HIGH">Tinggi</option>
+                    <option value="MEDIUM" selected>Sedang</option>
+                    <option value="LOW">Rendah</option>
+                </select>
+                <input type="text" id="inputTaskSubtasks" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Subtask 1, Subtask 2...">
             </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeTaskModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/5">Batal</button>
-                <button onclick="saveTaskModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 hover:bg-sky-400">Simpan Tugas</button>
-            </div>
+            <div class="flex justify-end gap-3"><button onclick="closeTaskModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveTaskModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
 
-    <!-- Habit Modal -->
     <div id="modalHabit" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
-            <h3 class="text-base font-bold text-white">Tambah Kebiasaan Belajar</h3>
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Kebiasaan</label>
-                <input type="text" id="inputHabitName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500" placeholder="Membaca Dokumentasi 20m">
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeHabitModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/5">Batal</button>
-                <button onclick="saveHabitModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 hover:bg-sky-400">Simpan Kebiasaan</button>
-            </div>
+            <h3 class="text-base font-bold text-white">Kebiasaan Baru</h3>
+            <input type="text" id="inputHabitName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Nama Kebiasaan...">
+            <div class="flex justify-end gap-3"><button onclick="closeHabitModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveHabitModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
 
-    <!-- Flashcard Modal -->
     <div id="modalFlashcard" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
-            <h3 class="text-base font-bold text-white">Tambah Flashcard Baru</h3>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Kategori / Topic</label>
-                    <input type="text" id="inputFlashDeck" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500" placeholder="JavaScript Core">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Pertanyaan (Depan)</label>
-                    <textarea id="inputFlashQuestion" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500 h-20" placeholder="Apa itu LocalStorage?"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Jawaban (Belakang)</label>
-                    <textarea id="inputFlashAnswer" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-sky-500 h-20" placeholder="Penyimpanan data lokal di browser..."></textarea>
-                </div>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeFlashcardModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/5">Batal</button>
-                <button onclick="saveFlashcardModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 hover:bg-sky-400">Simpan Kartu</button>
-            </div>
+            <h3 class="text-base font-bold text-white">Flashcard Baru</h3>
+            <input type="text" id="inputFlashDeck" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Kategori...">
+            <textarea id="inputFlashQuestion" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16" placeholder="Pertanyaan..."></textarea>
+            <textarea id="inputFlashAnswer" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16" placeholder="Jawaban..."></textarea>
+            <div class="flex justify-end gap-3"><button onclick="closeFlashcardModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveFlashcardModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
 
     <script>
-        let state = {
-            tasks: [], habits: [], flashcards: [], pomoCount: 0, pomoMinutes: 0, currentTaskFilterPriority: 'ALL'
-        };
-
+        window.state = { tasks: [], habits: [], flashcards: [], pomoCount: 0, pomoMinutes: 0, currentTaskFilterPriority: 'ALL' };
         const defaultState = {
-            tasks: [
-                { id: '1', title: 'Setup GitHub Repo & Vercel Deploy', course: 'Praktikum Web', priority: 'HIGH', status: 'done', subtasks: [{ title: 'git init', done: true }, { title: 'git push', done: true }] },
-                { id: '2', title: 'Tugas Vibe Coding Masterclass', course: 'Praktikum Web', priority: 'MEDIUM', status: 'inprogress', subtasks: [{ title: 'Susun Prompt', done: true }, { title: 'Desain UI iOS', done: false }] }
-            ],
-            habits: [
-                { id: '1', name: 'Koding 30 Menit', streak: 3, lastDone: new Date().toISOString().split('T')[0] },
-                { id: '2', name: 'Membaca Dokumentasi', streak: 1, lastDone: '' }
-            ],
-            flashcards: [
-                { id: '1', deck: 'JavaScript', question: 'Apa fungsi LocalStorage?', answer: 'Menyimpan data di browser secara permanen sampai dihapus manual.' }
-            ],
+            tasks: [{ id: '1', title: 'Setup GitHub Repo & Deploy Vercel', course: 'Praktikum Web', priority: 'HIGH', status: 'done', subtasks: [] }],
+            habits: [{ id: '1', name: 'Koding 30 Menit', streak: 3, lastDone: new Date().toISOString().split('T')[0] }],
+            flashcards: [{ id: '1', deck: 'JavaScript', question: 'Apa fungsi LocalStorage?', answer: 'Penyimpanan data lokal di browser.' }],
             pomoCount: 2, pomoMinutes: 50
         };
 
-        window.onload = function() {
-            loadFromLocalStorage();
-            renderAll();
-            calculateBudget();
-        };
+        window.onload = function() { loadFromLocalStorage(); renderAll(); calculateBudget(); };
 
-        function saveToLocalStorage() { localStorage.setItem('nexa_master_data', JSON.stringify(state)); }
+        function saveToLocalStorage() {
+            localStorage.setItem('nexa_master_data', JSON.stringify(window.state));
+            if (window.saveToFirebase) window.saveToFirebase();
+        }
 
         function loadFromLocalStorage() {
             const data = localStorage.getItem('nexa_master_data');
-            if (data) { try { state = JSON.parse(data); } catch(e) { state = defaultState; } }
-            else { state = defaultState; }
+            if (data) { try { window.state = JSON.parse(data); } catch(e) { window.state = defaultState; } }
+            else { window.state = defaultState; }
         }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('text-sky-400', 'bg-white/10', 'border', 'border-white/15', 'shadow-md');
-                el.classList.add('text-slate-400');
-            });
-
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('text-sky-400', 'bg-white/10'); el.classList.add('text-slate-400'); });
             const activeNav = document.getElementById(`nav-${tabId}`);
-            if (activeNav) {
-                activeNav.classList.remove('text-slate-400');
-                activeNav.classList.add('text-sky-400', 'bg-white/10', 'border', 'border-white/15', 'shadow-md');
-            }
-
+            if (activeNav) activeNav.classList.add('text-sky-400', 'bg-white/10');
             if(tabId === 'analytics') { updateAnalytics(); renderCharts(); }
         }
 
-        /* 1. TASK MATRIX */
-        function renderTasks() {
-            const colTodo = document.getElementById('col-todo');
-            const colInProgress = document.getElementById('col-inprogress');
-            const colDone = document.getElementById('col-done');
+        /* AUTH MODAL HANDLERS */
+        function openAuthModal() { document.getElementById('modalAuth').classList.remove('hidden'); document.getElementById('modalAuth').classList.add('flex'); }
+        function closeAuthModal() { document.getElementById('modalAuth').classList.add('hidden'); document.getElementById('modalAuth').classList.remove('flex'); }
+        function handleLogin() {
+            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
+            if(email && pass) { window.fbLogin(email, pass); closeAuthModal(); }
+        }
+        function handleRegister() {
+            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
+            if(email && pass) { window.fbRegister(email, pass); closeAuthModal(); }
+        }
 
+        /* TASK MATRIX */
+        function renderTasks() {
+            const colTodo = document.getElementById('col-todo'), colInProgress = document.getElementById('col-inprogress'), colDone = document.getElementById('col-done');
             colTodo.innerHTML = ''; colInProgress.innerHTML = ''; colDone.innerHTML = '';
             let countTodo = 0, countInProgress = 0, countDone = 0;
             const courseFilter = document.getElementById('courseFilterSelect').value;
 
-            const courses = [...new Set(state.tasks.map(t => t.course))];
-            const selectEl = document.getElementById('courseFilterSelect');
-            selectEl.innerHTML = '<option value="ALL">Semua Mata Kuliah</option>';
-            courses.forEach(c => {
-                if(c) {
-                    const opt = document.createElement('option');
-                    opt.value = c; opt.innerText = c;
-                    if(c === courseFilter) opt.selected = true;
-                    selectEl.appendChild(opt);
-                }
-            });
-
-            state.tasks.forEach(task => {
-                if(state.currentTaskFilterPriority !== 'ALL' && task.priority !== state.currentTaskFilterPriority) return;
+            window.state.tasks.forEach(task => {
+                if(window.state.currentTaskFilterPriority !== 'ALL' && task.priority !== window.state.currentTaskFilterPriority) return;
                 if(courseFilter !== 'ALL' && task.course !== courseFilter) return;
 
                 const card = createTaskCardElement(task);
@@ -579,7 +491,6 @@
                 else if (task.status === 'inprogress') { colInProgress.appendChild(card); countInProgress++; }
                 else if (task.status === 'done') { colDone.appendChild(card); countDone++; }
             });
-
             document.getElementById('count-todo').innerText = countTodo;
             document.getElementById('count-inprogress').innerText = countInProgress;
             document.getElementById('count-done').innerText = countDone;
@@ -587,205 +498,110 @@
 
         function createTaskCardElement(task) {
             const div = document.createElement('div');
-            div.className = 'liquid-glass p-4 rounded-2xl space-y-3 hover:border-white/30 transition-all text-xs';
-            
-            const prioBadge = task.priority === 'HIGH' ? '<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded font-bold">HIGH</span>' :
-                              task.priority === 'MEDIUM' ? '<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold">MED</span>' :
-                              '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">LOW</span>';
-
-            let subtasksHTML = '';
-            if(task.subtasks && task.subtasks.length > 0) {
-                subtasksHTML = `<div class="pt-2 border-t border-white/10 space-y-1">`;
-                task.subtasks.forEach((st, idx) => {
-                    subtasksHTML += `
-                        <label class="flex items-center gap-2 text-slate-400 cursor-pointer">
-                            <input type="checkbox" ${st.done ? 'checked' : ''} onchange="toggleSubtask('${task.id}', ${idx})" class="rounded accent-sky-400">
-                            <span class="${st.done ? 'line-through text-slate-600' : ''}">${st.title}</span>
-                        </label>
-                    `;
-                });
-                subtasksHTML += `</div>`;
-            }
-
+            div.className = 'liquid-glass p-4 rounded-2xl space-y-3 text-xs';
             div.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-400 font-semibold">${task.course || 'Umum'}</span>
-                    ${prioBadge}
-                </div>
+                <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">${task.course || 'Umum'}</span><span class="text-[10px] font-bold text-sky-400">${task.priority}</span></div>
                 <h4 class="font-bold text-xs text-white">${task.title}</h4>
-                ${subtasksHTML}
                 <div class="flex items-center justify-between pt-2 border-t border-white/10">
                     <select onchange="updateTaskStatus('${task.id}', this.value)" class="bg-slate-900 border border-white/10 text-slate-300 text-[10px] rounded p-1">
                         <option value="todo" ${task.status==='todo'?'selected':''}>To-Do</option>
                         <option value="inprogress" ${task.status==='inprogress'?'selected':''}>In Progress</option>
                         <option value="done" ${task.status==='done'?'selected':''}>Done</option>
                     </select>
-                    <button onclick="deleteTask('${task.id}')" class="text-slate-500 hover:text-red-400">
-                        <i class="fa-solid fa-trash text-xs"></i>
-                    </button>
+                    <button onclick="deleteTask('${task.id}')" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
             `;
             return div;
         }
 
         function setTaskFilter(type, val, btn) {
-            if(type === 'priority') {
-                state.currentTaskFilterPriority = val;
-                document.querySelectorAll('.task-filter-prio').forEach(b => {
-                    b.classList.remove('active', 'bg-sky-500/20', 'text-sky-300', 'border', 'border-sky-500/30');
-                    b.classList.add('text-slate-400');
-                });
-                btn.classList.add('active', 'bg-sky-500/20', 'text-sky-300', 'border', 'border-sky-500/30');
-                btn.classList.remove('text-slate-400');
-            }
+            window.state.currentTaskFilterPriority = val;
+            document.querySelectorAll('.task-filter-prio').forEach(b => b.classList.remove('bg-sky-500/20', 'text-sky-300'));
+            btn.classList.add('bg-sky-500/20', 'text-sky-300');
             renderTasks();
         }
 
         function updateTaskStatus(id, newStatus) {
-            const task = state.tasks.find(t => t.id === id);
+            const task = window.state.tasks.find(t => t.id === id);
             if(task) { task.status = newStatus; saveToLocalStorage(); renderTasks(); }
         }
-
-        function toggleSubtask(taskId, subtaskIdx) {
-            const task = state.tasks.find(t => t.id === taskId);
-            if(task && task.subtasks[subtaskIdx]) {
-                task.subtasks[subtaskIdx].done = !task.subtasks[subtaskIdx].done;
-                saveToLocalStorage(); renderTasks();
-            }
-        }
-
-        function deleteTask(id) { state.tasks = state.tasks.filter(t => t.id !== id); saveToLocalStorage(); renderTasks(); }
+        function deleteTask(id) { window.state.tasks = window.state.tasks.filter(t => t.id !== id); saveToLocalStorage(); renderTasks(); }
         function openTaskModal() { document.getElementById('modalTask').classList.remove('hidden'); document.getElementById('modalTask').classList.add('flex'); }
         function closeTaskModal() { document.getElementById('modalTask').classList.add('hidden'); document.getElementById('modalTask').classList.remove('flex'); }
-
         function saveTaskModal() {
-            const title = document.getElementById('inputTaskTitle').value;
-            const course = document.getElementById('inputTaskCourse').value;
-            const priority = document.getElementById('inputTaskPriority').value;
-            const subtasksRaw = document.getElementById('inputTaskSubtasks').value;
-
+            const title = document.getElementById('inputTaskTitle').value, course = document.getElementById('inputTaskCourse').value, priority = document.getElementById('inputTaskPriority').value;
             if(!title) return;
-            const subtasks = subtasksRaw ? subtasksRaw.split(',').map(s => ({ title: s.trim(), done: false })) : [];
-
-            state.tasks.push({ id: Date.now().toString(), title, course, priority, status: 'todo', subtasks });
+            window.state.tasks.push({ id: Date.now().toString(), title, course, priority, status: 'todo', subtasks: [] });
             saveToLocalStorage(); renderTasks(); closeTaskModal();
-            document.getElementById('inputTaskTitle').value = ''; document.getElementById('inputTaskSubtasks').value = '';
         }
 
-        /* 2. POMODORO TIMER */
+        /* POMODORO & SYNTH */
         let pomoState = { mode: 'work', timeTotal: 25 * 60, timeLeft: 25 * 60, timerId: null, isRunning: false };
-
         function setPomoMode(mode) {
-            pomoState.mode = mode;
-            if(mode === 'work') pomoState.timeTotal = 25 * 60;
-            else if(mode === 'shortBreak') pomoState.timeTotal = 5 * 60;
-            else if(mode === 'longBreak') pomoState.timeTotal = 15 * 60;
-
+            pomoState.mode = mode; pomoState.timeTotal = mode === 'work' ? 25*60 : (mode === 'shortBreak' ? 5*60 : 15*60);
             pomoState.timeLeft = pomoState.timeTotal; pausePomoTimer(); updatePomoDisplay();
-            document.querySelectorAll('#tab-pomodoro button[id^="pomo-mode-"]').forEach(b => {
-                b.classList.remove('bg-sky-500', 'text-slate-950', 'shadow-md'); b.classList.add('text-slate-400');
-            });
-            const activeBtn = document.getElementById(`pomo-mode-${mode}`);
-            activeBtn.classList.add('bg-sky-500', 'text-slate-950', 'shadow-md'); activeBtn.classList.remove('text-slate-400');
         }
-
         function togglePomoTimer() { if(pomoState.isRunning) pausePomoTimer(); else startPomoTimer(); }
-
         function startPomoTimer() {
             pomoState.isRunning = true;
-            document.getElementById('pomoStartBtn').innerText = 'Jeda Sesi';
             pomoState.timerId = setInterval(() => {
-                pomoState.timeLeft--;
-                updatePomoDisplay();
+                pomoState.timeLeft--; updatePomoDisplay();
                 if(pomoState.timeLeft <= 0) {
                     pausePomoTimer();
-                    if(pomoState.mode === 'work') {
-                        state.pomoCount++; state.pomoMinutes += 25; saveToLocalStorage();
-                        document.getElementById('pomoCompletedCount').innerText = state.pomoCount;
-                    }
-                    alert('Sesi Pomodoro Selesai!'); resetPomoTimer();
+                    if(pomoState.mode === 'work') { window.state.pomoCount++; window.state.pomoMinutes += 25; saveToLocalStorage(); }
+                    alert('Sesi Selesai!'); resetPomoTimer();
                 }
             }, 1000);
         }
-
-        function pausePomoTimer() { pomoState.isRunning = false; clearInterval(pomoState.timerId); document.getElementById('pomoStartBtn').innerText = 'Mulai Sesi'; }
+        function pausePomoTimer() { pomoState.isRunning = false; clearInterval(pomoState.timerId); }
         function resetPomoTimer() { pausePomoTimer(); pomoState.timeLeft = pomoState.timeTotal; updatePomoDisplay(); }
-
         function updatePomoDisplay() {
-            const min = Math.floor(pomoState.timeLeft / 60);
-            const sec = pomoState.timeLeft % 60;
+            const min = Math.floor(pomoState.timeLeft / 60), sec = pomoState.timeLeft % 60;
             document.getElementById('pomoTimeDisplay').innerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-            const circle = document.getElementById('pomoProgressRing');
-            const circumference = 2 * Math.PI * 110;
-            const offset = circumference - (pomoState.timeLeft / pomoState.timeTotal) * circumference;
-            circle.style.strokeDashoffset = offset;
         }
 
-        /* Web Audio API Synth */
         let audioCtx = null, ambientNodes = { rain: null, binaural: null };
         function getAudioContext() { if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
-
         function toggleAmbientSound(type) {
-            const ctx = getAudioContext(); const btn = document.getElementById(`btn-sound-${type}`);
-            if(ambientNodes[type]) {
-                ambientNodes[type].stop(); ambientNodes[type] = null;
-                btn.innerText = 'Aktifkan'; btn.classList.remove('text-sky-400');
-            } else {
+            const ctx = getAudioContext(), btn = document.getElementById(`btn-sound-${type}`);
+            if(ambientNodes[type]) { ambientNodes[type].stop(); ambientNodes[type] = null; btn.innerText = 'Aktifkan'; }
+            else {
                 if(type === 'rain') {
-                    const bufferSize = ctx.sampleRate * 2; const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-                    const output = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+                    const bufferSize = ctx.sampleRate * 2, buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate), output = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
                     const whiteNoise = ctx.createBufferSource(); whiteNoise.buffer = buffer; whiteNoise.loop = true;
                     const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 800;
-                    const gainNode = ctx.createGain(); gainNode.gain.value = parseFloat(document.getElementById('vol-rain').value);
+                    const gainNode = ctx.createGain(); gainNode.gain.value = 0.3;
                     whiteNoise.connect(filter); filter.connect(gainNode); gainNode.connect(ctx.destination); whiteNoise.start();
-                    ambientNodes.rain = { stop: () => whiteNoise.stop(), gain: gainNode };
-                } else if(type === 'binaural') {
-                    const oscL = ctx.createOscillator(), oscR = ctx.createOscillator();
-                    oscL.frequency.value = 200; oscR.frequency.value = 210;
-                    const merger = ctx.createChannelMerger(2), gainNode = ctx.createGain();
-                    gainNode.gain.value = parseFloat(document.getElementById('vol-binaural').value);
+                    ambientNodes.rain = { stop: () => whiteNoise.stop() };
+                } else {
+                    const oscL = ctx.createOscillator(), oscR = ctx.createOscillator(); oscL.frequency.value = 200; oscR.frequency.value = 210;
+                    const merger = ctx.createChannelMerger(2), gainNode = ctx.createGain(); gainNode.gain.value = 0.2;
                     oscL.connect(merger, 0, 0); oscR.connect(merger, 0, 1); merger.connect(gainNode); gainNode.connect(ctx.destination);
-                    oscL.start(); oscR.start();
-                    ambientNodes.binaural = { stop: () => { oscL.stop(); oscR.stop(); }, gain: gainNode };
+                    oscL.start(); oscR.start(); ambientNodes.binaural = { stop: () => { oscL.stop(); oscR.stop(); } };
                 }
-                btn.innerText = 'Matikan'; btn.classList.add('text-sky-400');
+                btn.innerText = 'Matikan';
             }
         }
 
-        function adjustSoundVolume(type) {
-            if(ambientNodes[type] && ambientNodes[type].gain) {
-                ambientNodes[type].gain.gain.value = parseFloat(document.getElementById(`vol-${type}`).value);
-            }
-        }
-
-        /* 3. HABIT TRACKER */
+        /* HABIT TRACKER */
         function renderHabits() {
             const container = document.getElementById('habitsContainer'); container.innerHTML = '';
             const todayStr = new Date().toISOString().split('T')[0];
-
-            state.habits.forEach(habit => {
+            window.state.habits.forEach(habit => {
                 const isDoneToday = habit.lastDone === todayStr;
                 const card = document.createElement('div');
                 card.className = 'liquid-glass p-6 rounded-3xl flex flex-col justify-between space-y-4';
                 card.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <h4 class="font-bold text-xs text-white">${habit.name}</h4>
-                        <button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl font-extrabold text-sky-400">🔥 ${habit.streak}</span>
-                        <span class="text-[11px] text-slate-400">Hari Beruntun</span>
-                    </div>
-                    <button onclick="toggleHabitDone('${habit.id}')" class="w-full py-3 rounded-2xl text-xs font-bold transition-all ${isDoneToday ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-sky-500 text-slate-950 hover:bg-sky-400'}">
-                        ${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai Hari Ini'}
-                    </button>
+                    <div class="flex items-center justify-between"><h4 class="font-bold text-xs text-white">${habit.name}</h4><button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button></div>
+                    <div class="flex items-center gap-2"><span class="text-2xl font-extrabold text-sky-400">🔥 ${habit.streak}</span><span class="text-[11px] text-slate-400">Hari Beruntun</span></div>
+                    <button onclick="toggleHabitDone('${habit.id}')" class="w-full py-3 rounded-2xl text-xs font-bold ${isDoneToday ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500 text-slate-950'}">${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai'}</button>
                 `;
                 container.appendChild(card);
             });
         }
-
         function toggleHabitDone(id) {
-            const habit = state.habits.find(h => h.id === id);
+            const habit = window.state.habits.find(h => h.id === id);
             if(habit) {
                 const todayStr = new Date().toISOString().split('T')[0];
                 if(habit.lastDone === todayStr) { habit.lastDone = ''; habit.streak = Math.max(0, habit.streak - 1); }
@@ -793,116 +609,82 @@
                 saveToLocalStorage(); renderHabits();
             }
         }
-
-        function deleteHabit(id) { state.habits = state.habits.filter(h => h.id !== id); saveToLocalStorage(); renderHabits(); }
+        function deleteHabit(id) { window.state.habits = window.state.habits.filter(h => h.id !== id); saveToLocalStorage(); renderHabits(); }
         function openHabitModal() { document.getElementById('modalHabit').classList.remove('hidden'); document.getElementById('modalHabit').classList.add('flex'); }
         function closeHabitModal() { document.getElementById('modalHabit').classList.add('hidden'); document.getElementById('modalHabit').classList.remove('flex'); }
-
         function saveHabitModal() {
             const name = document.getElementById('inputHabitName').value; if(!name) return;
-            state.habits.push({ id: Date.now().toString(), name, streak: 0, lastDone: '' });
-            saveToLocalStorage(); renderHabits(); closeHabitModal(); document.getElementById('inputHabitName').value = '';
+            window.state.habits.push({ id: Date.now().toString(), name, streak: 0, lastDone: '' });
+            saveToLocalStorage(); renderHabits(); closeHabitModal();
         }
 
-        /* 4. FLASHCARDS */
+        /* FLASHCARDS */
         let currentFlashcardIdx = 0, isCardFlipped = false;
-
         function renderFlashcards() {
-            if(state.flashcards.length === 0) {
-                document.getElementById('cardDeckTag').innerText = 'KOSONG';
-                document.getElementById('cardQuestionText').innerText = 'Belum ada flashcard. Silakan tambah kartu baru!';
-                document.getElementById('cardAnswerText').innerText = 'Kosong'; return;
-            }
-            const card = state.flashcards[currentFlashcardIdx];
+            if(window.state.flashcards.length === 0) return;
+            const card = window.state.flashcards[currentFlashcardIdx];
             document.getElementById('cardDeckTag').innerText = card.deck || 'Umum';
             document.getElementById('cardQuestionText').innerText = card.question;
             document.getElementById('cardAnswerText').innerText = card.answer;
         }
-
         function flipCard() {
             const cardEl = document.getElementById('flashcardCard'); isCardFlipped = !isCardFlipped;
             if(isCardFlipped) cardEl.classList.add('rotate-y-180'); else cardEl.classList.remove('rotate-y-180');
         }
-
         function rateRecall(level) {
-            if(state.flashcards.length === 0) return;
+            if(window.state.flashcards.length === 0) return;
             if(isCardFlipped) flipCard();
-            setTimeout(() => { currentFlashcardIdx = (currentFlashcardIdx + 1) % state.flashcards.length; renderFlashcards(); }, 300);
+            setTimeout(() => { currentFlashcardIdx = (currentFlashcardIdx + 1) % window.state.flashcards.length; renderFlashcards(); }, 300);
         }
-
         function openFlashcardModal() { document.getElementById('modalFlashcard').classList.remove('hidden'); document.getElementById('modalFlashcard').classList.add('flex'); }
         function closeFlashcardModal() { document.getElementById('modalFlashcard').classList.add('hidden'); document.getElementById('modalFlashcard').classList.remove('flex'); }
-
         function saveFlashcardModal() {
-            const deck = document.getElementById('inputFlashDeck').value;
-            const question = document.getElementById('inputFlashQuestion').value;
-            const answer = document.getElementById('inputFlashAnswer').value;
+            const deck = document.getElementById('inputFlashDeck').value, question = document.getElementById('inputFlashQuestion').value, answer = document.getElementById('inputFlashAnswer').value;
             if(!question || !answer) return;
-            state.flashcards.push({ id: Date.now().toString(), deck, question, answer });
+            window.state.flashcards.push({ id: Date.now().toString(), deck, question, answer });
             saveToLocalStorage(); renderFlashcards(); closeFlashcardModal();
-            document.getElementById('inputFlashQuestion').value = ''; document.getElementById('inputFlashAnswer').value = '';
         }
 
-        /* 5. DAILY SAFE-SPEND CALCULATOR */
+        /* BUDGET CALCULATOR */
         function calculateBudget() {
             const balance = parseFloat(document.getElementById('bgBalance').value) || 0;
             const days = parseFloat(document.getElementById('bgDays').value) || 1;
             const savings = parseFloat(document.getElementById('bgSavings').value) || 0;
-
             const netBalance = Math.max(0, balance - savings);
             const dailyLimit = Math.floor(netBalance / days);
-
             document.getElementById('bgSafeSpendDisplay').innerText = `Rp ${dailyLimit.toLocaleString('id-ID')} / hari`;
             document.getElementById('bgNetBalanceDisplay').innerText = `Rp ${netBalance.toLocaleString('id-ID')}`;
             document.getElementById('bgSavingsDisplay').innerText = `Rp ${savings.toLocaleString('id-ID')}`;
-
-            const advice = document.getElementById('bgStatusAdvice');
-            if(dailyLimit < 30000) {
-                advice.innerText = "Status: ⚠️ Mode Hemat Ketat! Alokasi harian di bawah rata-rata.";
-                advice.className = "text-xs text-red-400 font-semibold mt-2";
-            } else {
-                advice.innerText = "Status: ✅ Aman untuk pengeluaran harian.";
-                advice.className = "text-xs text-emerald-400 font-semibold mt-2";
-            }
         }
 
-        /* 6. ANALYTICS */
+        /* ANALYTICS */
         function updateAnalytics() {
-            const completedTasks = state.tasks.filter(t => t.status === 'done').length;
+            const completedTasks = window.state.tasks.filter(t => t.status === 'done').length;
             document.getElementById('analyticsTasksCompleted').innerText = completedTasks;
-            document.getElementById('analyticsPomoMinutes').innerText = state.pomoMinutes;
-
-            const taskScore = Math.min(50, completedTasks * 10);
-            const pomoScore = Math.min(50, Math.floor(state.pomoMinutes / 10));
-            document.getElementById('scoreValue').innerText = Math.min(100, taskScore + pomoScore + 20);
+            document.getElementById('analyticsPomoMinutes').innerText = window.state.pomoMinutes;
+            document.getElementById('scoreValue').innerText = Math.min(100, completedTasks * 10 + Math.floor(window.state.pomoMinutes/10) + 20);
         }
-
         function renderCharts() {
             const canvasTasks = document.getElementById('tasksChart'); if(!canvasTasks) return;
             const ctx = canvasTasks.getContext('2d');
             canvasTasks.width = canvasTasks.parentElement.clientWidth; canvasTasks.height = canvasTasks.parentElement.clientHeight;
             ctx.clearRect(0, 0, canvasTasks.width, canvasTasks.height);
-
             const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-            const values = [2, 4, 3, 5, 1, state.tasks.filter(t=>t.status==='done').length, 0];
-            const maxVal = 6, barWidth = 30;
-            const gap = (canvasTasks.width - (days.length * barWidth)) / (days.length + 1);
+            const values = [2, 4, 3, 5, 1, window.state.tasks.filter(t=>t.status==='done').length, 0];
+            const maxVal = 6, barWidth = 30, gap = (canvasTasks.width - (days.length * barWidth)) / (days.length + 1);
 
             days.forEach((day, idx) => {
-                const x = gap + idx * (barWidth + gap);
-                const barHeight = (values[idx] / maxVal) * (canvasTasks.height - 40);
-                const y = canvasTasks.height - 25 - barHeight;
-
+                const x = gap + idx * (barWidth + gap), barHeight = (values[idx] / maxVal) * (canvasTasks.height - 40), y = canvasTasks.height - 25 - barHeight;
                 ctx.fillStyle = idx === 5 ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)';
                 ctx.beginPath(); ctx.roundRect(x, y, barWidth, barHeight, 6); ctx.fill();
-
                 ctx.fillStyle = '#94a3b8'; ctx.font = '10px Plus Jakarta Sans'; ctx.textAlign = 'center';
                 ctx.fillText(day, x + barWidth/2, canvasTasks.height - 8);
             });
         }
 
+        /* EXPORT & IMPORT JSON */
         function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.state, null, 2));
             const downloadAnchor = document.createElement('a'); downloadAnchor.setAttribute("href", dataStr);
             downloadAnchor.setAttribute("download", `Nexa_Backup_${new Date().toISOString().split('T')[0]}.json`);
             document.body.appendChild(downloadAnchor); downloadAnchor.click(); downloadAnchor.remove();
@@ -913,13 +695,13 @@
             fileReader.onload = function(e) {
                 try {
                     const importedState = JSON.parse(e.target.result);
-                    if(importedState.tasks) { state = importedState; saveToLocalStorage(); renderAll(); alert('Data berhasil di-import!'); }
+                    if(importedState.tasks) { window.state = importedState; saveToLocalStorage(); renderAll(); alert('Data berhasil di-import!'); }
                 } catch(err) { alert('Format file JSON tidak valid!'); }
             };
             fileReader.readAsText(event.target.files[0]);
         }
 
-        function renderAll() { renderTasks(); renderHabits(); renderFlashcards(); updatePomoDisplay(); document.getElementById('pomoCompletedCount').innerText = state.pomoCount; }
+        window.renderAll = function() { renderTasks(); renderHabits(); renderFlashcards(); updatePomoDisplay(); document.getElementById('pomoCompletedCount').innerText = window.state.pomoCount; };
     </script>
 </body>
 </html>
