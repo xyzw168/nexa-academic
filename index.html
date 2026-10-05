@@ -11,10 +11,10 @@
     <!-- Firebase SDK (v10 HTML Script Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Konfigurasi Firebase
+        // Konfigurasi Firebase Asli Milik Widiya
         const firebaseConfig = {
             apiKey: "AIzaSyA-ergpCw7j5iAZKM9EjajVY-KvaDkA0Jw",
             authDomain: "nexa-academic.firebaseapp.com",
@@ -30,9 +30,10 @@
         const db = getFirestore(app);
 
         // Global Firebase functions
-        window.fbRegister = async (email, pass) => {
+        window.fbRegister = async (email, pass, name) => {
             try {
                 const res = await createUserWithEmailAndPassword(auth, email, pass);
+                await updateProfile(res.user, { displayName: name || email.split('@')[0] });
                 await setDoc(doc(db, "users", res.user.uid), window.state);
                 alert("Registrasi berhasil & data disinkronkan!");
             } catch (err) { alert("Gagal daftar: " + err.message); }
@@ -51,6 +52,19 @@
             location.reload();
         };
 
+        window.fbUpdateUserProfile = async (newName, newPhoto) => {
+            if (auth.currentUser) {
+                try {
+                    await updateProfile(auth.currentUser, {
+                        displayName: newName,
+                        photoURL: newPhoto || auth.currentUser.photoURL
+                    });
+                    alert("Profil berhasil diperbarui!");
+                    location.reload();
+                } catch(err) { alert("Gagal perbarui profil: " + err.message); }
+            }
+        };
+
         window.saveToFirebase = async () => {
             if (auth.currentUser) {
                 try {
@@ -60,11 +74,17 @@
         };
 
         onAuthStateChanged(auth, async (user) => {
-            const userStatusEl = document.getElementById('userStatusText');
-            const authBtns = document.getElementById('authActionButtons');
+            const guestBanner = document.getElementById('guestBanner');
+            const userProfileCard = document.getElementById('userProfileCard');
+            
             if (user) {
-                if(userStatusEl) userStatusEl.innerText = `Online: ${user.email}`;
-                if(authBtns) authBtns.innerHTML = `<button onclick="fbLogout()" class="bg-red-500/20 text-red-300 border border-red-500/30 px-3 py-1 rounded-xl text-xs font-bold">Logout</button>`;
+                if(guestBanner) guestBanner.classList.add('hidden');
+                if(userProfileCard) {
+                    userProfileCard.classList.remove('hidden');
+                    document.getElementById('profileNameDisplay').innerText = user.displayName || user.email.split('@')[0];
+                    document.getElementById('profileEmailDisplay').innerText = user.email;
+                    document.getElementById('profileAvatarImg').src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
+                }
                 
                 // Pull Cloud Data
                 const docSnap = await getDoc(doc(db, "users", user.uid));
@@ -73,8 +93,8 @@
                     window.renderAll();
                 }
             } else {
-                if(userStatusEl) userStatusEl.innerText = "Mode Tamu (Lokal)";
-                if(authBtns) authBtns.innerHTML = `<button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login / Daftar</button>`;
+                if(guestBanner) guestBanner.classList.remove('hidden');
+                if(userProfileCard) userProfileCard.classList.add('hidden');
             }
         });
     </script>
@@ -115,7 +135,7 @@
     <!-- Sidebar Navigation -->
     <aside class="w-full md:w-72 liquid-glass flex-shrink-0 md:min-h-screen p-6 flex flex-col justify-between z-20 sticky top-0 md:relative rounded-b-3xl md:rounded-r-3xl md:rounded-b-none">
         <div>
-            <!-- Brand Logo & User Status -->
+            <!-- Brand Logo -->
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl shadow-lg text-white">
@@ -128,10 +148,29 @@
                 </div>
             </div>
 
-            <!-- Auth Status Banner -->
-            <div class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-6 flex items-center justify-between text-xs">
-                <span id="userStatusText" class="text-slate-300 font-medium truncate max-w-[140px]">Memuat status...</span>
-                <div id="authActionButtons"></div>
+            <!-- GUEST BANNER (Jika belum Login) -->
+            <div id="guestBanner" class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-6 flex items-center justify-between text-xs">
+                <span class="text-slate-300 font-medium">Mode Tamu (Lokal)</span>
+                <button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login / Daftar</button>
+            </div>
+
+            <!-- USER PROFILE CARD (Jika sudah Login) -->
+            <div id="userProfileCard" class="hidden bg-slate-900/80 border border-white/15 rounded-2xl p-3.5 mb-6 space-y-3">
+                <div class="flex items-center gap-3">
+                    <img id="profileAvatarImg" src="" alt="Avatar" class="w-10 h-10 rounded-xl object-cover bg-slate-800 border border-white/20">
+                    <div class="overflow-hidden">
+                        <h4 id="profileNameDisplay" class="font-bold text-xs text-white truncate">User Name</h4>
+                        <p id="profileEmailDisplay" class="text-[10px] text-slate-400 truncate">user@email.com</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                    <button onclick="openEditProfileModal()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] py-1.5 rounded-lg font-semibold text-sky-300 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-pen"></i> Edit Profile
+                    </button>
+                    <button onclick="fbLogout()" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[10px] py-1.5 rounded-lg font-semibold text-red-300 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                </div>
             </div>
 
             <!-- Navigation Links -->
@@ -374,11 +413,15 @@
 
     </main>
 
-    <!-- AUTH MODAL (LOGIN & DAFTAR FIREBASE) -->
+    <!-- AUTH MODAL (LOGIN & DAFTAR) -->
     <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
-            <h3 class="text-base font-bold text-white text-center">Login / Daftar Account Nexa</h3>
+            <h3 class="text-base font-bold text-white text-center">Login / Daftar Nexa</h3>
             <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap / Panggilan</label>
+                    <input type="text" id="authName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Widiya Astuti">
+                </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
                     <input type="email" id="authEmail" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="email@contoh.com">
@@ -393,6 +436,27 @@
                 <button onclick="handleRegister()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 text-white border border-white/10">Daftar Baru</button>
             </div>
             <button onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-500 pt-2">Tutup</button>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="modalEditProfile" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
+            <h3 class="text-base font-bold text-white text-center">Edit Profil Mahasiswa</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Tampilan</label>
+                    <input type="text" id="editProfileName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Baru...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL Foto Profil (Opsional)</label>
+                    <input type="text" id="editProfilePhoto" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="https://..." >
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeEditProfileModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400">Batal</button>
+                <button onclick="handleSaveProfile()" class="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950">Simpan Profil</button>
+            </div>
         </div>
     </div>
 
@@ -463,16 +527,24 @@
             if(tabId === 'analytics') { updateAnalytics(); renderCharts(); }
         }
 
-        /* AUTH MODAL HANDLERS */
+        /* AUTH & PROFILE MODAL HANDLERS */
         function openAuthModal() { document.getElementById('modalAuth').classList.remove('hidden'); document.getElementById('modalAuth').classList.add('flex'); }
         function closeAuthModal() { document.getElementById('modalAuth').classList.add('hidden'); document.getElementById('modalAuth').classList.remove('flex'); }
+        function openEditProfileModal() { document.getElementById('modalEditProfile').classList.remove('hidden'); document.getElementById('modalEditProfile').classList.add('flex'); }
+        function closeEditProfileModal() { document.getElementById('modalEditProfile').classList.add('hidden'); document.getElementById('modalEditProfile').classList.remove('flex'); }
+
         function handleLogin() {
             const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
             if(email && pass) { window.fbLogin(email, pass); closeAuthModal(); }
         }
         function handleRegister() {
-            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
-            if(email && pass) { window.fbRegister(email, pass); closeAuthModal(); }
+            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value, name = document.getElementById('authName').value;
+            if(email && pass) { window.fbRegister(email, pass, name); closeAuthModal(); }
+        }
+        function handleSaveProfile() {
+            const newName = document.getElementById('editProfileName').value;
+            const newPhoto = document.getElementById('editProfilePhoto').value;
+            if(newName) { window.fbUpdateUserProfile(newName, newPhoto); closeEditProfileModal(); }
         }
 
         /* TASK MATRIX */
