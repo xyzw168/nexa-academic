@@ -11,10 +11,9 @@
     <!-- Firebase SDK (v10 HTML Script Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Konfigurasi Firebase 
         const firebaseConfig = {
             apiKey: "AIzaSyA-ergpCw7j5iAZKM9EjajVY-KvaDkA0Jw",
             authDomain: "nexa-academic.firebaseapp.com",
@@ -28,14 +27,26 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
 
-        // Global Firebase functions
+        window.fbGoogleLogin = async () => {
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                await setDoc(doc(db, "users", result.user.uid), window.state, { merge: true });
+                alert("Login dengan Google berhasil!");
+                closeAuthModal();
+            } catch (err) {
+                alert("Gagal login Google: " + err.message);
+            }
+        };
+
         window.fbRegister = async (email, pass, name) => {
             try {
                 const res = await createUserWithEmailAndPassword(auth, email, pass);
                 await updateProfile(res.user, { displayName: name || email.split('@')[0] });
                 await setDoc(doc(db, "users", res.user.uid), window.state);
-                alert("Registrasi berhasil & data disinkronkan!");
+                alert("Registrasi berhasil!");
+                closeAuthModal();
             } catch (err) { alert("Gagal daftar: " + err.message); }
         };
 
@@ -43,6 +54,7 @@
             try {
                 await signInWithEmailAndPassword(auth, email, pass);
                 alert("Login berhasil!");
+                closeAuthModal();
             } catch (err) { alert("Gagal login: " + err.message); }
         };
 
@@ -76,6 +88,7 @@
         onAuthStateChanged(auth, async (user) => {
             const guestBanner = document.getElementById('guestBanner');
             const userProfileCard = document.getElementById('userProfileCard');
+            const mobileUserAvatar = document.getElementById('mobileUserAvatar');
             
             if (user) {
                 if(guestBanner) guestBanner.classList.add('hidden');
@@ -85,8 +98,10 @@
                     document.getElementById('profileEmailDisplay').innerText = user.email;
                     document.getElementById('profileAvatarImg').src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
                 }
+                if(mobileUserAvatar) {
+                    mobileUserAvatar.src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
+                }
                 
-                // Pull Cloud Data
                 const docSnap = await getDoc(doc(db, "users", user.uid));
                 if (docSnap.exists()) {
                     window.state = docSnap.data();
@@ -118,40 +133,55 @@
         ::-webkit-scrollbar-track { background: #090d16; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
         .ambient-glow { position: fixed; border-radius: 50%; filter: blur(120px); z-index: 0; opacity: 0.35; pointer-events: none; }
-        .glow-1 { width: 450px; height: 450px; background: radial-gradient(circle, #38bdf8, #818cf8); top: -100px; left: -100px; }
-        .glow-2 { width: 500px; height: 500px; background: radial-gradient(circle, #c084fc, #e879f9); bottom: -150px; right: -100px; }
-        .liquid-glass { background: rgba(30, 41, 59, 0.45); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); }
+        .glow-1 { width: 350px; height: 350px; background: radial-gradient(circle, #38bdf8, #818cf8); top: -100px; left: -100px; }
+        .glow-2 { width: 400px; height: 400px; background: radial-gradient(circle, #c084fc, #e879f9); bottom: -150px; right: -100px; }
+        .liquid-glass { background: rgba(30, 41, 59, 0.55); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); }
         .perspective-1000 { perspective: 1000px; }
         .transform-style-3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
         .backface-hidden { backface-visibility: hidden; }
         .rotate-y-180 { transform: rotateY(180deg); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row antialiased relative">
+<body class="min-h-screen flex flex-col md:flex-row antialiased relative pb-20 md:pb-0">
 
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
 
-    <!-- Sidebar Navigation (Diperbaiki agar di mobile bisa di-scroll normal) -->
-    <aside class="w-full md:w-72 liquid-glass flex-shrink-0 md:min-h-screen p-6 flex flex-col justify-between z-20 md:sticky md:top-0 rounded-b-3xl md:rounded-r-3xl md:rounded-b-none">
+    <!-- MOBILE TOP BAR -->
+    <header class="md:hidden sticky top-0 z-40 liquid-glass px-4 py-3 flex items-center justify-between border-b border-white/10">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-bold text-sm text-white">⚡</div>
+            <span class="font-bold text-base text-white tracking-tight">Nexa</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleMobileDrawer()" class="p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10 text-xs flex items-center gap-1.5 font-semibold">
+                <i class="fa-solid fa-bars text-sm"></i>
+                <span>Menu</span>
+            </button>
+            <button onclick="openAuthModal()" class="w-8 h-8 rounded-xl bg-slate-800 border border-white/20 flex items-center justify-center overflow-hidden">
+                <img id="mobileUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" class="w-full h-full object-cover">
+            </button>
+        </div>
+    </header>
+
+    <!-- SIDEBAR DRAWER -->
+    <aside id="sidebarDrawer" class="fixed inset-y-0 left-0 z-50 w-72 liquid-glass p-6 flex flex-col justify-between transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative md:flex-shrink-0 md:min-h-screen rounded-r-3xl md:rounded-none">
         <div>
-            <!-- Brand Logo -->
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl shadow-lg text-white">
-                        ⚡
-                    </div>
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl text-white shadow-lg">⚡</div>
                     <div>
-                        <h1 class="font-bold text-xl tracking-tight text-white">Nexa</h1>
+                        <h1 class="font-bold text-xl text-white">Nexa</h1>
                         <p class="text-[10px] text-sky-400 font-semibold uppercase tracking-wider">Academic Focus Hub</p>
                     </div>
                 </div>
+                <button onclick="toggleMobileDrawer()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
             <!-- GUEST BANNER -->
             <div id="guestBanner" class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-6 flex items-center justify-between text-xs">
-                <span class="text-slate-300 font-medium">Guest Mode</span>
-                <button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login / Daftar</button>
+                <span class="text-slate-300 font-medium text-[11px]">Mode Tamu</span>
+                <button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login</button>
             </div>
 
             <!-- USER PROFILE CARD -->
@@ -164,48 +194,46 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                    <button onclick="openEditProfileModal()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] py-1.5 rounded-lg font-semibold text-sky-300 flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-pen"></i> Edit Profile
+                    <button onclick="openEditProfileModal()" class="bg-white/5 border border-white/10 text-[10px] py-1.5 rounded-lg font-semibold text-sky-300 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-pen"></i> Edit
                     </button>
-                    <button onclick="fbLogout()" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[10px] py-1.5 rounded-lg font-semibold text-red-300 flex items-center justify-center gap-1">
+                    <button onclick="fbLogout()" class="bg-red-500/10 border border-red-500/20 text-[10px] py-1.5 rounded-lg font-semibold text-red-300 flex items-center justify-center gap-1">
                         <i class="fa-solid fa-right-from-bracket"></i> Logout
                     </button>
                 </div>
             </div>
 
-            <!-- Navigation Links -->
-            <nav class="space-y-2" id="navContainer">
-                <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-sky-400 bg-white/10 border border-white/15">
+            <!-- Menu Navigasi -->
+            <nav class="space-y-1.5">
+                <button onclick="switchTab('tasks'); toggleMobileDrawer();" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-sky-400 bg-white/10 border border-white/15">
                     <i class="fa-solid fa-square-check text-base"></i> Task Matrix
                 </button>
-                <button onclick="switchTab('pomodoro')" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                <button onclick="switchTab('pomodoro'); toggleMobileDrawer();" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
                     <i class="fa-solid fa-clock text-base"></i> Focus Station
                 </button>
-                <button onclick="switchTab('habits')" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                <button onclick="switchTab('habits'); toggleMobileDrawer();" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
                     <i class="fa-solid fa-fire text-base"></i> Habit Tracker
                 </button>
-                <button onclick="switchTab('flashcards')" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                <button onclick="switchTab('flashcards'); toggleMobileDrawer();" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
                     <i class="fa-solid fa-brain text-base"></i> Smart Flashcards
                 </button>
-                <button onclick="switchTab('budget')" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                <button onclick="switchTab('budget'); toggleMobileDrawer();" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
                     <i class="fa-solid fa-wallet text-base"></i> Daily Safe-Spend
                 </button>
-                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all text-slate-400 hover:text-white">
+                <button onclick="switchTab('analytics'); toggleMobileDrawer();" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
                     <i class="fa-solid fa-chart-pie text-base"></i> Analytics & Score
                 </button>
             </nav>
         </div>
 
-        <!-- Backup Data Controls -->
-        <div class="pt-6 border-t border-white/10 space-y-3 mt-6 md:mt-0">
-            <div class="flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                <span>Backup JSON State</span>
-            </div>
+        <!-- Backup Controls -->
+        <div class="pt-4 border-t border-white/10 space-y-2 mt-4">
+            <span class="text-[10px] text-slate-400 font-medium">Backup JSON</span>
             <div class="grid grid-cols-2 gap-2">
-                <button onclick="exportData()" class="bg-white/5 hover:bg-white/10 border border-white/10 text-xs py-2.5 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1.5 transition-all">
+                <button onclick="exportData()" class="bg-white/5 border border-white/10 text-xs py-2 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1">
                     <i class="fa-solid fa-download"></i> Export
                 </button>
-                <label class="bg-white/5 hover:bg-white/10 border border-white/10 text-xs py-2.5 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all">
+                <label class="bg-white/5 border border-white/10 text-xs py-2 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1 cursor-pointer">
                     <i class="fa-solid fa-upload"></i> Import
                     <input type="file" id="importFileInput" onchange="importData(event)" class="hidden" accept=".json">
                 </label>
@@ -213,267 +241,271 @@
         </div>
     </aside>
 
-    <!-- Main Content Container -->
+    <div id="drawerOverlay" onclick="toggleMobileDrawer()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden md:hidden"></div>
+
+    <!-- MAIN CONTENT -->
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10">
 
         <!-- TAB 1: TASK MATRIX -->
-        <section id="tab-tasks" class="tab-page space-y-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <section id="tab-tasks" class="tab-page space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                         Task Matrix & Priorities
-                        <span class="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1 rounded-full font-bold">Eisenhower</span>
+                        <span class="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-bold">Eisenhower</span>
                     </h2>
-                    <p class="text-xs text-slate-400 mt-1">Kelola tugas kuliah berdasarkan skala prioritas dan subtasks.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Kelola tugas kuliah berdasarkan skala prioritas.</p>
                 </div>
-                <button onclick="openTaskModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Tambah Tugas Baru
+                <button onclick="openTaskModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-4 py-2.5 rounded-xl shadow-lg text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Tambah Tugas
                 </button>
             </div>
 
-            <div class="liquid-glass p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 text-xs">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-slate-400 font-medium text-[11px] uppercase tracking-wider mr-1">Prioritas:</span>
-                    <button onclick="setTaskFilter('priority', 'ALL', this)" class="task-filter-prio active bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3.5 py-1.5 rounded-xl font-semibold">Semua</button>
-                    <button onclick="setTaskFilter('priority', 'HIGH', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3.5 py-1.5 rounded-xl font-semibold">Tinggi</button>
-                    <button onclick="setTaskFilter('priority', 'MEDIUM', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3.5 py-1.5 rounded-xl font-semibold">Sedang</button>
-                    <button onclick="setTaskFilter('priority', 'LOW', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3.5 py-1.5 rounded-xl font-semibold">Rendah</button>
+            <div class="liquid-glass p-3 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-slate-400 font-medium text-[10px] uppercase tracking-wider mr-1">Prio:</span>
+                    <button onclick="setTaskFilter('priority', 'ALL', this)" class="task-filter-prio active bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-lg font-semibold text-[11px]">Semua</button>
+                    <button onclick="setTaskFilter('priority', 'HIGH', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Tinggi</button>
+                    <button onclick="setTaskFilter('priority', 'MEDIUM', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Sedang</button>
+                    <button onclick="setTaskFilter('priority', 'LOW', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Rendah</button>
                 </div>
-                <select id="courseFilterSelect" onchange="renderTasks()" class="bg-slate-900/80 border border-white/10 text-slate-200 text-xs rounded-xl p-2.5 focus:outline-none focus:border-sky-500 w-full sm:w-auto">
+                <select id="courseFilterSelect" onchange="renderTasks()" class="bg-slate-900/80 border border-white/10 text-slate-200 text-xs rounded-xl p-2 focus:outline-none focus:border-sky-500 w-full sm:w-auto">
                     <option value="ALL">Semua Mata Kuliah</option>
                 </select>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
-                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400"></span><h3 class="font-bold text-xs text-slate-200">Belum Dimulai</h3></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col min-h-[300px]">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><h3 class="font-bold text-xs text-slate-200">Belum Dimulai</h3></div>
                         <span id="count-todo" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
-                    <div id="col-todo" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
+                    <div id="col-todo" class="space-y-2.5 flex-1 overflow-y-auto pr-1"></div>
                 </div>
-                <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
-                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400 animate-pulse"></span><h3 class="font-bold text-xs text-slate-200">Sedang Dikerjakan</h3></div>
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col min-h-[300px]">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span><h3 class="font-bold text-xs text-slate-200">Sedang Dikerjakan</h3></div>
                         <span id="count-inprogress" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
-                    <div id="col-inprogress" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
+                    <div id="col-inprogress" class="space-y-2.5 flex-1 overflow-y-auto pr-1"></div>
                 </div>
-                <div class="liquid-glass p-5 rounded-3xl flex flex-col h-full min-h-[420px]">
-                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span><h3 class="font-bold text-xs text-slate-200">Selesai</h3></div>
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col min-h-[300px]">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><h3 class="font-bold text-xs text-slate-200">Selesai</h3></div>
                         <span id="count-done" class="text-[10px] bg-white/10 px-2 py-0.5 rounded-lg text-slate-300 font-bold">0</span>
                     </div>
-                    <div id="col-done" class="space-y-3 flex-1 overflow-y-auto pr-1"></div>
+                    <div id="col-done" class="space-y-2.5 flex-1 overflow-y-auto pr-1"></div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 2: POMODORO FOCUS STATION -->
+        <!-- TAB 2: POMODORO -->
         <section id="tab-pomodoro" class="tab-page hidden space-y-6">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white">Focus Station & Soundscape</h2>
-                <p class="text-xs text-slate-400 mt-1">Teknik Pomodoro dengan Synthesizer Suara Latar Belakang (Web Audio API).</p>
+                <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white">Focus Station</h2>
+                <p class="text-xs text-slate-400 mt-1">Timer Pomodoro & Synthesizer Suara Latar.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 liquid-glass p-8 rounded-3xl flex flex-col items-center justify-center text-center relative">
-                    <div class="flex gap-2 mb-8 bg-slate-900/60 p-1.5 rounded-2xl border border-white/10">
-                        <button onclick="setPomoMode('work')" id="pomo-mode-work" class="px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 shadow-md">Fokus (25m)</button>
-                        <button onclick="setPomoMode('shortBreak')" id="pomo-mode-shortBreak" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat (5m)</button>
-                        <button onclick="setPomoMode('longBreak')" id="pomo-mode-longBreak" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat Panjang (15m)</button>
+                <div class="lg:col-span-2 liquid-glass p-6 rounded-3xl flex flex-col items-center justify-center text-center">
+                    <div class="flex gap-1.5 mb-6 bg-slate-900/60 p-1.5 rounded-2xl border border-white/10">
+                        <button onclick="setPomoMode('work')" id="pomo-mode-work" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 shadow-md">Fokus (25m)</button>
+                        <button onclick="setPomoMode('shortBreak')" id="pomo-mode-shortBreak" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat (5m)</button>
+                        <button onclick="setPomoMode('longBreak')" id="pomo-mode-longBreak" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Panjang (15m)</button>
                     </div>
-                    <div class="relative w-64 h-64 flex items-center justify-center my-2">
+                    <div class="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center my-2">
                         <svg class="w-full h-full transform -rotate-90">
-                            <circle cx="128" cy="128" r="110" stroke="rgba(255,255,255,0.1)" stroke-width="12" fill="transparent" />
-                            <circle id="pomoProgressRing" cx="128" cy="128" r="110" stroke="#38bdf8" stroke-width="12" class="transition-all duration-1000" fill="transparent" stroke-dasharray="691" stroke-dashoffset="0" stroke-linecap="round" />
+                            <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="transparent" />
+                            <circle id="pomoProgressRing" cx="120" cy="120" r="100" stroke="#38bdf8" stroke-width="10" class="transition-all duration-1000" fill="transparent" stroke-dasharray="628" stroke-dashoffset="0" stroke-linecap="round" />
                         </svg>
                         <div class="absolute flex flex-col items-center">
-                            <span id="pomoTimeDisplay" class="text-5xl font-extrabold tracking-tight text-white font-mono">25:00</span>
-                            <span id="pomoStatusText" class="text-[10px] font-bold text-sky-400 uppercase tracking-widest mt-2">Mode Fokus</span>
+                            <span id="pomoTimeDisplay" class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white font-mono">25:00</span>
+                            <span id="pomoStatusText" class="text-[10px] font-bold text-sky-400 uppercase tracking-widest mt-1">Mode Fokus</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4 mt-8">
-                        <button onclick="togglePomoTimer()" id="pomoStartBtn" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-sm font-bold px-8 py-3.5 rounded-2xl shadow-xl">Mulai Sesi</button>
-                        <button onclick="resetPomoTimer()" class="bg-white/10 text-slate-200 text-xs font-semibold px-5 py-3.5 rounded-2xl border border-white/10">Reset</button>
+                    <div class="flex items-center gap-3 mt-6">
+                        <button onclick="togglePomoTimer()" id="pomoStartBtn" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-xl">Mulai Sesi</button>
+                        <button onclick="resetPomoTimer()" class="bg-white/10 text-slate-200 text-xs font-semibold px-4 py-3 rounded-xl border border-white/10">Reset</button>
                     </div>
-                    <div class="mt-6 text-xs text-slate-400 font-medium">Total Sesi Hari Ini: <span id="pomoCompletedCount" class="text-sky-400 font-bold">0</span> Sesi</div>
                 </div>
 
-                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between space-y-6">
-                    <div>
-                        <h3 class="font-bold text-sm text-slate-100 mb-1 flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> Synthesizer Suara Latar</h3>
-                        <p class="text-xs text-slate-400 mb-6">Suara alam matematis untuk kejernihan konsentrasi.</p>
-                        <div class="space-y-4">
-                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
-                                <span class="text-xs font-semibold text-slate-200">Deru Hujan</span>
-                                <button onclick="toggleAmbientSound('rain')" id="btn-sound-rain" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
-                            </div>
-                            <div class="bg-slate-900/60 p-4 rounded-2xl border border-white/10 flex items-center justify-between">
-                                <span class="text-xs font-semibold text-slate-200">Alpha Wave (10Hz)</span>
-                                <button onclick="toggleAmbientSound('binaural')" id="btn-sound-binaural" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
-                            </div>
+                <div class="liquid-glass p-5 rounded-3xl space-y-4">
+                    <h3 class="font-bold text-xs text-slate-100 flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> Suara Latar</h3>
+                    <div class="space-y-3">
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-white/10 flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-200">Deru Hujan</span>
+                            <button onclick="toggleAmbientSound('rain')" id="btn-sound-rain" class="text-[10px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-white/10 flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-200">Alpha Wave (10Hz)</span>
+                            <button onclick="toggleAmbientSound('binaural')" id="btn-sound-binaural" class="text-[10px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
                         </div>
                     </div>
-                    <div class="p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-[11px] text-sky-300"><i class="fa-solid fa-circle-info"></i> Gunakan earphone untuk efek maksimal.</div>
                 </div>
             </div>
         </section>
 
         <!-- TAB 3: HABIT TRACKER -->
-        <section id="tab-habits" class="tab-page hidden space-y-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-2xl font-bold tracking-tight text-white">Habit & Study Streak Tracker</h2>
-                    <p class="text-xs text-slate-400 mt-1">Bangun konsistensi belajar harian dengan perhitungan streak otomatis.</p>
-                </div>
-                <button onclick="openHabitModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Kebiasaan Baru
-                </button>
+        <section id="tab-habits" class="tab-page hidden space-y-5">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Habit Tracker</h2>
+                <button onclick="openHabitModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Kebiasaan</button>
             </div>
-            <div id="habitsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="habitsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </section>
 
         <!-- TAB 4: FLASHCARDS -->
-        <section id="tab-flashcards" class="tab-page hidden space-y-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-2xl font-bold tracking-tight text-white">Smart Flashcards 3D</h2>
-                    <p class="text-xs text-slate-400 mt-1">Metode latihan daya ingat berbasis kartu 3D flip.</p>
-                </div>
-                <button onclick="openFlashcardModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-5 py-3 rounded-2xl shadow-lg text-xs flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Tambah Kartu
-                </button>
+        <section id="tab-flashcards" class="tab-page hidden space-y-5">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Smart Flashcards</h2>
+                <button onclick="openFlashcardModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Kartu Baru</button>
             </div>
-            <div class="max-w-xl mx-auto space-y-6">
+            <div class="max-w-md mx-auto space-y-5">
                 <div id="flashcardDeckArea" class="perspective-1000">
-                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-8 min-h-[280px] flex flex-col justify-between cursor-pointer relative shadow-2xl border border-white/20">
+                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-6 min-h-[220px] flex flex-col justify-between cursor-pointer relative shadow-xl border border-white/20">
                         <div id="cardFront" class="backface-hidden flex flex-col items-center justify-center text-center my-auto">
-                            <span id="cardDeckTag" class="text-[10px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full mb-4">Materi</span>
-                            <p id="cardQuestionText" class="text-base font-semibold text-slate-100">Tekan 'Tambah Kartu' untuk membuat materi baru.</p>
-                            <span class="text-[11px] text-slate-500 mt-6 font-medium">Klik untuk membalik kartu 🔄</span>
+                            <span id="cardDeckTag" class="text-[9px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full mb-3">Materi</span>
+                            <p id="cardQuestionText" class="text-sm font-semibold text-slate-100">Tekan '+ Kartu Baru' untuk membuat materi baru.</p>
                         </div>
-                        <div id="cardBack" class="backface-hidden rotate-y-180 absolute inset-0 p-8 flex flex-col items-center justify-center text-center bg-slate-900/95 rounded-3xl border border-white/20">
-                            <span class="text-[10px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-4">Jawaban</span>
-                            <p id="cardAnswerText" class="text-sm text-slate-200">Penjelasan detail muncul di sini.</p>
+                        <div id="cardBack" class="backface-hidden rotate-y-180 absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900/95 rounded-3xl border border-white/20">
+                            <span class="text-[9px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full mb-3">Jawaban</span>
+                            <p id="cardAnswerText" class="text-xs text-slate-200">Penjelasan detail muncul di sini.</p>
                         </div>
                     </div>
-                </div>
-                <div class="flex items-center justify-center gap-3">
-                    <button onclick="rateRecall('hard')" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold">Sulit 🔴</button>
-                    <button onclick="rateRecall('medium')" class="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold">Sedang 🟡</button>
-                    <button onclick="rateRecall('easy')" class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">Mudah 🟢</button>
                 </div>
             </div>
         </section>
 
         <!-- TAB 5: DAILY SAFE-SPEND -->
-        <section id="tab-budget" class="tab-page hidden space-y-6">
-            <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white">Daily Safe-Spend Calculator</h2>
-                <p class="text-xs text-slate-400 mt-1">Kalkulator pengeluaran harian aman mahasiswa.</p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="liquid-glass p-6 rounded-3xl space-y-4">
-                    <h3 class="font-bold text-sm text-slate-200">Hitung Limit Harian</h3>
-                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Sisa Saldo (Rp)</label><input type="number" id="bgBalance" value="1500000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
-                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Hari Tersisa</label><input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
-                    <div><label class="block text-xs font-semibold text-slate-300 mb-1">Target Tabungan (Rp)</label><input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none"></div>
+        <section id="tab-budget" class="tab-page hidden space-y-5">
+            <h2 class="text-xl font-bold text-white">Daily Safe-Spend Calculator</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div class="liquid-glass p-5 rounded-3xl space-y-3">
+                    <h3 class="font-bold text-xs text-slate-200">Hitung Limit Harian</h3>
+                    <div><label class="block text-[11px] text-slate-300 mb-1">Sisa Saldo (Rp)</label><input type="number" id="bgBalance" value="1500000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <div><label class="block text-[11px] text-slate-300 mb-1">Hari Tersisa</label><input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <div><label class="block text-[11px] text-slate-300 mb-1">Target Tabungan (Rp)</label><input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
                 </div>
-                <div class="lg:col-span-2 liquid-glass p-8 rounded-3xl flex flex-col justify-between text-center">
+                <div class="lg:col-span-2 liquid-glass p-6 rounded-3xl flex flex-col justify-between text-center">
                     <div>
-                        <span class="text-xs uppercase tracking-widest text-slate-400 font-semibold">Batas Aman Belanja Per Hari</span>
-                        <h3 id="bgSafeSpendDisplay" class="text-4xl font-extrabold text-sky-400 mt-2">Rp 65.000 / hari</h3>
-                        <p id="bgStatusAdvice" class="text-xs text-emerald-400 font-semibold mt-2">Status: Aman untuk pengeluaran harian.</p>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/10">
-                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5"><span class="text-[10px] text-slate-400 font-semibold">Saldo Bersih</span><p id="bgNetBalanceDisplay" class="text-base font-bold text-slate-200 mt-1">Rp 1.300.000</p></div>
-                        <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5"><span class="text-[10px] text-slate-400 font-semibold">Tabungan</span><p id="bgSavingsDisplay" class="text-base font-bold text-amber-400 mt-1">Rp 200.000</p></div>
+                        <span class="text-[10px] uppercase text-slate-400 font-semibold">Batas Aman Belanja</span>
+                        <h3 id="bgSafeSpendDisplay" class="text-3xl font-extrabold text-sky-400 mt-1">Rp 65.000 / hari</h3>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- TAB 6: ANALYTICS -->
-        <section id="tab-analytics" class="tab-page hidden space-y-6">
-            <div>
-                <h2 class="text-2xl font-bold tracking-tight text-white">Analytics & Productivity Score</h2>
-                <p class="text-xs text-slate-400 mt-1">Ringkasan statistik produktivitas harian Anda.</p>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Skor Produktivitas</span><div class="flex items-baseline gap-2 mt-2"><span id="scoreValue" class="text-4xl font-extrabold text-sky-400">85</span><span class="text-xs text-emerald-400 font-bold">/ 100 PTS</span></div></div>
-                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Tugas Selesai</span><div class="flex items-baseline gap-2 mt-2"><span id="analyticsTasksCompleted" class="text-4xl font-extrabold text-emerald-400">0</span><span class="text-xs text-slate-400 font-medium">Tugas</span></div></div>
-                <div class="liquid-glass p-6 rounded-3xl"><span class="text-xs text-slate-400 font-semibold uppercase">Total Fokus</span><div class="flex items-baseline gap-2 mt-2"><span id="analyticsPomoMinutes" class="text-4xl font-extrabold text-amber-400">0</span><span class="text-xs text-slate-400 font-medium">Menit</span></div></div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between"><h3 class="font-bold text-xs text-slate-200 mb-4">Grafik Tugas Harian</h3><div class="w-full h-64"><canvas id="tasksChart" class="w-full h-full"></canvas></div></div>
-                <div class="liquid-glass p-6 rounded-3xl flex flex-col justify-between"><h3 class="font-bold text-xs text-slate-200 mb-4">Distribusi Sesi Fokus</h3><div class="w-full h-64 flex items-center justify-center"><canvas id="pomoChart" class="w-full h-full"></canvas></div></div>
+        <section id="tab-analytics" class="tab-page hidden space-y-5">
+            <h2 class="text-xl font-bold text-white">Analytics & Productivity Score</h2>
+            <div class="grid grid-cols-3 gap-3">
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Skor</span><div id="scoreValue" class="text-2xl font-extrabold text-sky-400 mt-1">85</div></div>
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Selesai</span><div id="analyticsTasksCompleted" class="text-2xl font-extrabold text-emerald-400 mt-1">0</div></div>
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Fokus</span><div id="analyticsPomoMinutes" class="text-2xl font-extrabold text-amber-400 mt-1">0m</div></div>
             </div>
         </section>
 
     </main>
 
-    <!-- AUTH MODAL (LOGIN & DAFTAR) -->
+    <!-- FLOATING BOTTOM NAV BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 liquid-glass border-t border-white/15 px-3 py-2 flex items-center justify-around text-[10px] font-semibold">
+        <button onclick="switchTab('tasks')" id="bnav-tasks" class="flex flex-col items-center gap-1 text-sky-400">
+            <i class="fa-solid fa-square-check text-base"></i>
+            <span>Matrix</span>
+        </button>
+        <button onclick="switchTab('pomodoro')" id="bnav-pomodoro" class="flex flex-col items-center gap-1 text-slate-400">
+            <i class="fa-solid fa-clock text-base"></i>
+            <span>Focus</span>
+        </button>
+        <button onclick="switchTab('habits')" id="bnav-habits" class="flex flex-col items-center gap-1 text-slate-400">
+            <i class="fa-solid fa-fire text-base"></i>
+            <span>Habit</span>
+        </button>
+        <button onclick="switchTab('flashcards')" id="bnav-flashcards" class="flex flex-col items-center gap-1 text-slate-400">
+            <i class="fa-solid fa-brain text-base"></i>
+            <span>Cards</span>
+        </button>
+        <button onclick="switchTab('budget')" id="bnav-budget" class="flex flex-col items-center gap-1 text-slate-400">
+            <i class="fa-solid fa-wallet text-base"></i>
+            <span>Spend</span>
+        </button>
+    </nav>
+
+    <!-- AUTH MODAL (DIPERBARUI DENGAN GOOGLE SIGN-IN & PLACEHOLDER RAPI) -->
     <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
-            <h3 class="text-base font-bold text-white text-center">Login / Daftar Nexa</h3>
-            <div class="space-y-3">
+        <div class="liquid-glass bg-slate-900/90 border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-white">Masuk ke Nexa</h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Sinkronkan data tugas & fokus antar-perangkat</p>
+            </div>
+
+            <!-- Tombol Google Login -->
+            <button onclick="fbGoogleLogin()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2.5 shadow-md transition-all">
+                <svg class="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>Lanjutkan dengan Google</span>
+            </button>
+
+            <!-- Divider -->
+            <div class="flex items-center my-3">
+                <div class="flex-grow border-t border-white/10"></div>
+                <span class="px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">atau Email</span>
+                <div class="flex-grow border-t border-white/10"></div>
+            </div>
+
+            <!-- Form Email / Password -->
+            <div class="space-y-2.5">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap / Panggilan</label>
-                    <input type="text" id="authName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Widiya Astuti">
+                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Nama Lengkap</label>
+                    <input type="text" id="authName" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="Contoh: Alex Pratama">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
-                    <input type="email" id="authEmail" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="email@contoh.com">
+                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Alamat Email</label>
+                    <input type="email" id="authEmail" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="nama@mahasiswa.ac.id">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                    <input type="password" id="authPassword" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Minimal 6 karakter">
+                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Kata Sandi</label>
+                    <input type="password" id="authPassword" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="Minimal 6 karakter">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-3 pt-2">
-                <button onclick="handleLogin()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-500 text-slate-950">Masuk (Login)</button>
-                <button onclick="handleRegister()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 text-white border border-white/10">Daftar Baru</button>
+
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+                <button onclick="handleLogin()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all">Masuk</button>
+                <button onclick="handleRegister()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all">Daftar</button>
             </div>
-            <button onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-500 pt-2">Tutup</button>
+            <button onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-500 hover:text-slate-300 pt-1">Tutup</button>
         </div>
     </div>
 
-    <!-- EDIT PROFILE MODAL -->
+    <!-- MODAL EDIT PROFILE -->
     <div id="modalEditProfile" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
-            <h3 class="text-base font-bold text-white text-center">Edit Profil Mahasiswa</h3>
+            <h3 class="text-base font-bold text-white text-center">Edit Profil</h3>
             <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Tampilan</label>
-                    <input type="text" id="editProfileName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Baru...">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL Foto Profil (Opsional)</label>
-                    <input type="text" id="editProfilePhoto" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="https://..." >
-                </div>
+                <input type="text" id="editProfileName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Nama Baru...">
+                <input type="text" id="editProfilePhoto" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="URL Foto Avatar (Opsional)...">
             </div>
             <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeEditProfileModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400">Batal</button>
-                <button onclick="handleSaveProfile()" class="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 text-slate-950">Simpan Profil</button>
+                <button onclick="closeEditProfileModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button>
+                <button onclick="handleSaveProfile()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button>
             </div>
         </div>
     </div>
 
-    <!-- MODALS UTILITY (TASK, HABIT, FLASHCARD) -->
     <div id="modalTask" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
+        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-3">
             <h3 class="text-base font-bold text-white">Tambah Tugas Baru</h3>
-            <div class="space-y-3">
-                <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Judul Tugas...">
-                <input type="text" id="inputTaskCourse" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Mata Kuliah...">
-                <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white">
-                    <option value="HIGH">Tinggi</option>
-                    <option value="MEDIUM" selected>Sedang</option>
-                    <option value="LOW">Rendah</option>
-                </select>
-                <input type="text" id="inputTaskSubtasks" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Subtask 1, Subtask 2...">
-            </div>
+            <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Judul Tugas...">
+            <input type="text" id="inputTaskCourse" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Mata Kuliah...">
+            <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white">
+                <option value="HIGH">Tinggi</option>
+                <option value="MEDIUM" selected>Sedang</option>
+                <option value="LOW">Rendah</option>
+            </select>
             <div class="flex justify-end gap-3"><button onclick="closeTaskModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveTaskModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
@@ -518,12 +550,30 @@
             else { window.state = defaultState; }
         }
 
+        function toggleMobileDrawer() {
+            const drawer = document.getElementById('sidebarDrawer');
+            const overlay = document.getElementById('drawerOverlay');
+            drawer.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            
             document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('text-sky-400', 'bg-white/10'); el.classList.add('text-slate-400'); });
             const activeNav = document.getElementById(`nav-${tabId}`);
             if (activeNav) activeNav.classList.add('text-sky-400', 'bg-white/10');
+
+            const bnavBtns = ['tasks', 'pomodoro', 'habits', 'flashcards', 'budget'];
+            bnavBtns.forEach(btn => {
+                const bEl = document.getElementById(`bnav-${btn}`);
+                if(bEl) {
+                    if(btn === tabId) { bEl.classList.remove('text-slate-400'); bEl.classList.add('text-sky-400'); }
+                    else { bEl.classList.remove('text-sky-400'); bEl.classList.add('text-slate-400'); }
+                }
+            });
+
             if(tabId === 'analytics') { updateAnalytics(); renderCharts(); }
         }
 
@@ -535,11 +585,11 @@
 
         function handleLogin() {
             const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
-            if(email && pass) { window.fbLogin(email, pass); closeAuthModal(); }
+            if(email && pass) { window.fbLogin(email, pass); }
         }
         function handleRegister() {
             const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value, name = document.getElementById('authName').value;
-            if(email && pass) { window.fbRegister(email, pass, name); closeAuthModal(); }
+            if(email && pass) { window.fbRegister(email, pass, name); }
         }
         function handleSaveProfile() {
             const newName = document.getElementById('editProfileName').value;
@@ -570,11 +620,11 @@
 
         function createTaskCardElement(task) {
             const div = document.createElement('div');
-            div.className = 'liquid-glass p-4 rounded-2xl space-y-3 text-xs';
+            div.className = 'liquid-glass p-3 rounded-2xl space-y-2 text-xs';
             div.innerHTML = `
                 <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">${task.course || 'Umum'}</span><span class="text-[10px] font-bold text-sky-400">${task.priority}</span></div>
                 <h4 class="font-bold text-xs text-white">${task.title}</h4>
-                <div class="flex items-center justify-between pt-2 border-t border-white/10">
+                <div class="flex items-center justify-between pt-1.5 border-t border-white/10">
                     <select onchange="updateTaskStatus('${task.id}', this.value)" class="bg-slate-900 border border-white/10 text-slate-300 text-[10px] rounded p-1">
                         <option value="todo" ${task.status==='todo'?'selected':''}>To-Do</option>
                         <option value="inprogress" ${task.status==='inprogress'?'selected':''}>In Progress</option>
@@ -663,11 +713,11 @@
             window.state.habits.forEach(habit => {
                 const isDoneToday = habit.lastDone === todayStr;
                 const card = document.createElement('div');
-                card.className = 'liquid-glass p-6 rounded-3xl flex flex-col justify-between space-y-4';
+                card.className = 'liquid-glass p-5 rounded-2xl flex flex-col justify-between space-y-3';
                 card.innerHTML = `
                     <div class="flex items-center justify-between"><h4 class="font-bold text-xs text-white">${habit.name}</h4><button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button></div>
-                    <div class="flex items-center gap-2"><span class="text-2xl font-extrabold text-sky-400">🔥 ${habit.streak}</span><span class="text-[11px] text-slate-400">Hari Beruntun</span></div>
-                    <button onclick="toggleHabitDone('${habit.id}')" class="w-full py-3 rounded-2xl text-xs font-bold ${isDoneToday ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500 text-slate-950'}">${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai'}</button>
+                    <div class="flex items-center gap-2"><span class="text-xl font-extrabold text-sky-400">🔥 ${habit.streak}</span><span class="text-[10px] text-slate-400">Hari Beruntun</span></div>
+                    <button onclick="toggleHabitDone('${habit.id}')" class="w-full py-2.5 rounded-xl text-xs font-bold ${isDoneToday ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500 text-slate-950'}">${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai'}</button>
                 `;
                 container.appendChild(card);
             });
@@ -703,11 +753,6 @@
             const cardEl = document.getElementById('flashcardCard'); isCardFlipped = !isCardFlipped;
             if(isCardFlipped) cardEl.classList.add('rotate-y-180'); else cardEl.classList.remove('rotate-y-180');
         }
-        function rateRecall(level) {
-            if(window.state.flashcards.length === 0) return;
-            if(isCardFlipped) flipCard();
-            setTimeout(() => { currentFlashcardIdx = (currentFlashcardIdx + 1) % window.state.flashcards.length; renderFlashcards(); }, 300);
-        }
         function openFlashcardModal() { document.getElementById('modalFlashcard').classList.remove('hidden'); document.getElementById('modalFlashcard').classList.add('flex'); }
         function closeFlashcardModal() { document.getElementById('modalFlashcard').classList.add('hidden'); document.getElementById('modalFlashcard').classList.remove('flex'); }
         function saveFlashcardModal() {
@@ -725,33 +770,14 @@
             const netBalance = Math.max(0, balance - savings);
             const dailyLimit = Math.floor(netBalance / days);
             document.getElementById('bgSafeSpendDisplay').innerText = `Rp ${dailyLimit.toLocaleString('id-ID')} / hari`;
-            document.getElementById('bgNetBalanceDisplay').innerText = `Rp ${netBalance.toLocaleString('id-ID')}`;
-            document.getElementById('bgSavingsDisplay').innerText = `Rp ${savings.toLocaleString('id-ID')}`;
         }
 
         /* ANALYTICS */
         function updateAnalytics() {
             const completedTasks = window.state.tasks.filter(t => t.status === 'done').length;
             document.getElementById('analyticsTasksCompleted').innerText = completedTasks;
-            document.getElementById('analyticsPomoMinutes').innerText = window.state.pomoMinutes;
+            document.getElementById('analyticsPomoMinutes').innerText = window.state.pomoMinutes + 'm';
             document.getElementById('scoreValue').innerText = Math.min(100, completedTasks * 10 + Math.floor(window.state.pomoMinutes/10) + 20);
-        }
-        function renderCharts() {
-            const canvasTasks = document.getElementById('tasksChart'); if(!canvasTasks) return;
-            const ctx = canvasTasks.getContext('2d');
-            canvasTasks.width = canvasTasks.parentElement.clientWidth; canvasTasks.height = canvasTasks.parentElement.clientHeight;
-            ctx.clearRect(0, 0, canvasTasks.width, canvasTasks.height);
-            const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-            const values = [2, 4, 3, 5, 1, window.state.tasks.filter(t=>t.status==='done').length, 0];
-            const maxVal = 6, barWidth = 30, gap = (canvasTasks.width - (days.length * barWidth)) / (days.length + 1);
-
-            days.forEach((day, idx) => {
-                const x = gap + idx * (barWidth + gap), barHeight = (values[idx] / maxVal) * (canvasTasks.height - 40), y = canvasTasks.height - 25 - barHeight;
-                ctx.fillStyle = idx === 5 ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)';
-                ctx.beginPath(); ctx.roundRect(x, y, barWidth, barHeight, 6); ctx.fill();
-                ctx.fillStyle = '#94a3b8'; ctx.font = '10px Plus Jakarta Sans'; ctx.textAlign = 'center';
-                ctx.fillText(day, x + barWidth/2, canvasTasks.height - 8);
-            });
         }
 
         /* EXPORT & IMPORT JSON */
@@ -773,7 +799,7 @@
             fileReader.readAsText(event.target.files[0]);
         }
 
-        window.renderAll = function() { renderTasks(); renderHabits(); renderFlashcards(); updatePomoDisplay(); document.getElementById('pomoCompletedCount').innerText = window.state.pomoCount; };
+        window.renderAll = function() { renderTasks(); renderHabits(); renderFlashcards(); updatePomoDisplay(); };
     </script>
 </body>
 </html>
