@@ -54,3 +54,11 @@
 1. **Clone Repository ini:**
    ```bash
    git clone [https://github.com/xyzw168/nexa-academic.git](https://github.com/xyzw168/nexa-academic.git)
+
+---
+
+## 👤 Identitas Pembuat
+
+* **Nama:** Widiya Astuti
+* **NIM:** 400403266500101
+* **Kelas:** D Praktikum
