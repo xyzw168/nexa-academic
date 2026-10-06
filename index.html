@@ -12,7 +12,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: atob("QUl6YVN5QS1lcmdwQ3c3ajVpQVpLTTlFamFqVlktS3ZhRGtBMEp3"),
@@ -29,11 +29,11 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
+        let unsubscribeFirestore = null;
+
         window.fbGoogleLogin = async () => {
             try {
-                const result = await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
-                await setDoc(doc(db, "users", result.user.uid), window.state, { merge: true });
-                alert("Login dengan Google berhasil!");
+                await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
                 closeAuthModal();
             } catch (err) {
                 alert("Gagal login Google: " + err.message);
@@ -46,11 +46,7 @@
                 await updateProfile(res.user, { displayName: name || email.split('@')[0] });
                 await setDoc(doc(db, "users", res.user.uid), {
                     ...window.state,
-                    name: name,
-                    email: email,
-                    education: education,
-                    school: school,
-                    createdAt: new Date().toISOString()
+                    profile: { name, email, education, school, createdAt: new Date().toISOString() }
                 }, { merge: true });
                 alert("Registrasi berhasil! Selamat datang, " + name);
                 closeAuthModal();
@@ -60,39 +56,27 @@
         window.fbLogin = async (email, pass) => {
             try {
                 await signInWithEmailAndPassword(auth, email, pass);
-                alert("Login berhasil!");
                 closeAuthModal();
             } catch (err) { alert("Gagal login: " + err.message); }
         };
 
         window.fbLogout = async () => {
+            if(unsubscribeFirestore) unsubscribeFirestore();
             await signOut(auth);
-            alert("Logout berhasil!");
             location.reload();
         };
 
-        window.fbUpdateUserProfile = async (newName, newPhoto) => {
-            if (auth.currentUser) {
-                try {
-                    await updateProfile(auth.currentUser, {
-                        displayName: newName,
-                        photoURL: newPhoto || auth.currentUser.photoURL
-                    });
-                    alert("Profil berhasil diperbarui!");
-                    location.reload();
-                } catch(err) { alert("Gagal perbarui profil: " + err.message); }
-            }
-        };
-
-        window.saveToFirebase = async () => {
+        window.saveData = async () => {
             if (auth.currentUser) {
                 try {
                     await setDoc(doc(db, "users", auth.currentUser.uid), window.state, { merge: true });
                 } catch(e) { console.error("Cloud sync error", e); }
+            } else {
+                localStorage.setItem('nexa_guest_data', JSON.stringify(window.state));
             }
         };
 
-        onAuthStateChanged(auth, async (user) => {
+        onAuthStateChanged(auth, (user) => {
             const guestBanner = document.getElementById('guestBanner');
             const userProfileCard = document.getElementById('userProfileCard');
             const mobileUserAvatar = document.getElementById('mobileUserAvatar');
@@ -105,18 +89,23 @@
                     document.getElementById('profileEmailDisplay').innerText = user.email;
                     document.getElementById('profileAvatarImg').src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
                 }
-                if(mobileUserAvatar) {
-                    mobileUserAvatar.src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
-                }
-                
-                const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) {
-                    window.state = { ...window.state, ...docSnap.data() };
-                    window.renderAll();
-                }
+                if(mobileUserAvatar) mobileUserAvatar.src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
+
+                unsubscribeFirestore = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        window.state = { ...window.state, ...docSnap.data() };
+                        window.renderAll();
+                    }
+                });
             } else {
                 if(guestBanner) guestBanner.classList.remove('hidden');
                 if(userProfileCard) userProfileCard.classList.add('hidden');
+                
+                const localData = localStorage.getItem('nexa_guest_data');
+                if(localData) {
+                    try { window.state = JSON.parse(localData); } catch(e) {}
+                }
+                window.renderAll();
             }
         });
     </script>
@@ -165,8 +154,6 @@
                 <i class="fa-solid fa-bars text-sm"></i>
                 <span>Menu</span>
             </button>
-
-            <!-- SMART MOBILE AVATAR -->
             <button onclick="handleMobileAvatarClick()" class="w-8 h-8 rounded-xl bg-slate-800 border border-white/20 flex items-center justify-center overflow-hidden">
                 <img id="mobileUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" class="w-full h-full object-cover">
             </button>
@@ -181,20 +168,24 @@
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl text-white shadow-lg">⚡</div>
                     <div>
                         <h1 class="font-bold text-xl text-white">Nexa</h1>
-                        <p class="text-[10px] text-sky-400 font-semibold uppercase tracking-wider">Academic Focus Hub</p>
+                        <p class="text-[10px] text-sky-400 font-semibold uppercase tracking-wider">Academic Hub</p>
                     </div>
                 </div>
                 <button onclick="toggleMobileDrawer()" class="md:hidden text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
-            <!-- GUEST BANNER -->
-            <div id="guestBanner" class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-6 flex items-center justify-between text-xs">
-                <span class="text-slate-300 font-medium text-[11px]">Guest Mode</span>
+            <div class="relative mb-4">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                <input type="text" id="globalSearchInput" oninput="handleGlobalSearch(this.value)" placeholder="Cari tugas, matkul, flashcard..." class="w-full bg-slate-900/80 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-sky-400">
+                <div id="searchResultsDropdown" class="absolute left-0 right-0 top-10 bg-slate-900 border border-white/15 rounded-xl p-2 hidden shadow-2xl z-50 max-h-60 overflow-y-auto space-y-1 text-xs"></div>
+            </div>
+
+            <div id="guestBanner" class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4 flex items-center justify-between text-xs">
+                <span class="text-slate-300 font-medium text-[11px]">Mode Tamu</span>
                 <button onclick="openAuthModal()" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-xl text-xs font-bold">Login</button>
             </div>
 
-            <!-- USER PROFILE CARD -->
-            <div id="userProfileCard" class="hidden bg-slate-900/80 border border-white/15 rounded-2xl p-3.5 mb-6 space-y-3">
+            <div id="userProfileCard" class="hidden bg-slate-900/80 border border-white/15 rounded-2xl p-3.5 mb-4 space-y-3">
                 <div class="flex items-center gap-3">
                     <img id="profileAvatarImg" src="" alt="Avatar" class="w-10 h-10 rounded-xl object-cover bg-slate-800 border border-white/20">
                     <div class="overflow-hidden">
@@ -203,50 +194,44 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                    <button onclick="openEditProfileModal()" class="bg-white/5 border border-white/10 text-[10px] py-1.5 rounded-lg font-semibold text-sky-300 flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </button>
-                    <button onclick="fbLogout()" class="bg-red-500/10 border border-red-500/20 text-[10px] py-1.5 rounded-lg font-semibold text-red-300 flex items-center justify-center gap-1">
+                    <button onclick="fbLogout()" class="col-span-2 bg-red-500/10 border border-red-500/20 text-[10px] py-1.5 rounded-lg font-semibold text-red-300 flex items-center justify-center gap-1">
                         <i class="fa-solid fa-right-from-bracket"></i> Logout
                     </button>
                 </div>
             </div>
 
-            <!-- Menu Navigasi -->
-            <nav class="space-y-1.5">
-                <button onclick="switchTab('tasks'); toggleMobileDrawer();" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-sky-400 bg-white/10 border border-white/15">
-                    <i class="fa-solid fa-square-check text-base"></i> Task Matrix
+            <nav class="space-y-1">
+                <button onclick="switchTab('dashboard'); toggleMobileDrawer();" id="nav-dashboard" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-sky-400 bg-white/10 border border-white/15">
+                    <i class="fa-solid fa-house text-sm"></i> Dashboard
                 </button>
-                <button onclick="switchTab('pomodoro'); toggleMobileDrawer();" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-clock text-base"></i> Focus Station
+                <button onclick="switchTab('tasks'); toggleMobileDrawer();" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-square-check text-sm"></i> Task Matrix
                 </button>
-                <button onclick="switchTab('habits'); toggleMobileDrawer();" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-fire text-base"></i> Habit Tracker
+                <button onclick="switchTab('courses'); toggleMobileDrawer();" id="nav-courses" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-book text-sm"></i> Mata Kuliah
                 </button>
-                <button onclick="switchTab('flashcards'); toggleMobileDrawer();" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-brain text-base"></i> Smart Flashcards
+                <button onclick="switchTab('pomodoro'); toggleMobileDrawer();" id="nav-pomodoro" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-clock text-sm"></i> Focus Station
                 </button>
-                <button onclick="switchTab('budget'); toggleMobileDrawer();" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-wallet text-base"></i> Daily Safe-Spend
+                <button onclick="switchTab('habits'); toggleMobileDrawer();" id="nav-habits" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-fire text-sm"></i> Habit Tracker
                 </button>
-                <button onclick="switchTab('analytics'); toggleMobileDrawer();" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-chart-pie text-base"></i> Analytics & Score
+                <button onclick="switchTab('flashcards'); toggleMobileDrawer();" id="nav-flashcards" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-brain text-sm"></i> Smart Flashcards
+                </button>
+                <button onclick="switchTab('budget'); toggleMobileDrawer();" id="nav-budget" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-wallet text-sm"></i> Daily Safe-Spend
+                </button>
+                <button onclick="switchTab('analytics'); toggleMobileDrawer();" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-chart-pie text-sm"></i> Analytics & Score
                 </button>
             </nav>
         </div>
 
-        <!-- Backup Controls -->
-        <div class="pt-4 border-t border-white/10 space-y-2 mt-4">
-            <span class="text-[10px] text-slate-400 font-medium">Backup JSON</span>
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="exportData()" class="bg-white/5 border border-white/10 text-xs py-2 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1">
-                    <i class="fa-solid fa-download"></i> Export
-                </button>
-                <label class="bg-white/5 border border-white/10 text-xs py-2 rounded-xl font-semibold text-sky-300 flex items-center justify-center gap-1 cursor-pointer">
-                    <i class="fa-solid fa-upload"></i> Import
-                    <input type="file" id="importFileInput" onchange="importData(event)" class="hidden" accept=".json">
-                </label>
-            </div>
+        <div class="pt-3 border-t border-white/10 space-y-2 mt-2">
+            <button onclick="requestNotificationPermission()" class="w-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] py-1.5 rounded-xl font-semibold flex items-center justify-center gap-1">
+                <i class="fa-solid fa-bell"></i> Aktifkan Notifikasi
+            </button>
         </div>
     </aside>
 
@@ -255,15 +240,62 @@
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10">
 
-        <!-- TAB 1: TASK MATRIX -->
-        <section id="tab-tasks" class="tab-page space-y-5">
+        <!-- DASHBOARD -->
+        <section id="tab-dashboard" class="tab-page space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-white">Selamat Datang 👋</h2>
+                    <p class="text-xs text-slate-400">Ringkasan produktivitas dan agenda akademismu hari ini.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="dashboardDateDisplay" class="text-xs font-medium text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-xl"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col justify-between">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold">Tugas Belum Selesai</span>
+                    <div id="dashPendingTasks" class="text-2xl font-extrabold text-amber-400 mt-2">0</div>
+                </div>
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col justify-between">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold">Deadline Hari Ini</span>
+                    <div id="dashTodayDue" class="text-2xl font-extrabold text-red-400 mt-2">0</div>
+                </div>
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col justify-between">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold">Habit Streak</span>
+                    <div id="dashHabitStreak" class="text-2xl font-extrabold text-sky-400 mt-2">🔥 0</div>
+                </div>
+                <div class="liquid-glass p-4 rounded-2xl flex flex-col justify-between">
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Sesi Fokus</span>
+                    <div id="dashFocusTotal" class="text-2xl font-extrabold text-emerald-400 mt-2">0m</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="liquid-glass p-5 rounded-3xl space-y-3">
+                    <h3 class="font-bold text-xs text-white flex items-center gap-2"><i class="fa-solid fa-clock text-red-400"></i> Task Mendekati Deadline</h3>
+                    <div id="dashUpcomingTasksList" class="space-y-2 text-xs"></div>
+                </div>
+                <div class="liquid-glass p-5 rounded-3xl space-y-3 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-xs text-white flex items-center gap-2"><i class="fa-solid fa-play text-sky-400"></i> Sesi Fokus Cepat</h3>
+                        <p class="text-[11px] text-slate-400 mt-1">Mulai timer Pomodoro 25 menit langsung dari Dashboard.</p>
+                    </div>
+                    <button onclick="switchTab('pomodoro')" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold py-3 rounded-2xl text-xs shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-stopwatch"></i> Buka Focus Station
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TASK MATRIX -->
+        <section id="tab-tasks" class="tab-page hidden space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                         Task Matrix & Priorities
-                        <span class="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-bold">Eisenhower</span>
                     </h2>
-                    <p class="text-xs text-slate-400 mt-0.5">Kelola tugas akademis beserta deadline & subtask.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Atur urutan pengerjaan tugas berdasarkan kriteria Eisenhower.</p>
                 </div>
                 <button onclick="openTaskModal()" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold px-4 py-2.5 rounded-xl shadow-lg text-xs flex items-center justify-center gap-2">
                     <i class="fa-solid fa-plus"></i> Tambah Tugas
@@ -272,14 +304,14 @@
 
             <div class="liquid-glass p-3 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <span class="text-slate-400 font-medium text-[10px] uppercase tracking-wider mr-1">Prioritas:</span>
+                    <span class="text-slate-400 font-medium text-[10px] uppercase tracking-wider mr-1">Prio:</span>
                     <button onclick="setTaskFilter('priority', 'ALL', this)" class="task-filter-prio active bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-lg font-semibold text-[11px]">Semua</button>
                     <button onclick="setTaskFilter('priority', 'HIGH', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Tinggi</button>
                     <button onclick="setTaskFilter('priority', 'MEDIUM', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Sedang</button>
                     <button onclick="setTaskFilter('priority', 'LOW', this)" class="task-filter-prio text-slate-400 hover:bg-white/5 px-3 py-1 rounded-lg font-semibold text-[11px]">Rendah</button>
                 </div>
                 <select id="courseFilterSelect" onchange="renderTasks()" class="bg-slate-900/80 border border-white/10 text-slate-200 text-xs rounded-xl p-2 focus:outline-none focus:border-sky-500 w-full sm:w-auto">
-                    <option value="ALL">Semua Mata Pelajaran / Kuliah</option>
+                    <option value="ALL">Semua Mata Kuliah</option>
                 </select>
             </div>
 
@@ -308,20 +340,41 @@
             </div>
         </section>
 
-        <!-- TAB 2: POMODORO -->
+        <!-- MATA KULIAH -->
+        <section id="tab-courses" class="tab-page hidden space-y-5">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Daftar Mata Kuliah</h2>
+                    <p class="text-xs text-slate-400">Kelola daftar mata kuliah aktif semester ini.</p>
+                </div>
+                <button onclick="openCourseModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Matkul Baru</button>
+            </div>
+            <div id="coursesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- POMODORO -->
         <section id="tab-pomodoro" class="tab-page hidden space-y-6">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white">Focus Station</h2>
-                <p class="text-xs text-slate-400 mt-1">Timer Pomodoro & Synthesizer Suara Latar.</p>
+                <p class="text-xs text-slate-400 mt-1">Timer Pomodoro terintegrasi langsung dengan Tugas & Suara Latar.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 liquid-glass p-6 rounded-3xl flex flex-col items-center justify-center text-center">
+                    
+                    <div class="w-full max-w-sm mb-4">
+                        <label class="block text-[10px] text-slate-400 mb-1 text-left font-semibold">🎯 Target Fokus Tugas:</label>
+                        <select id="pomoTaskSelect" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400">
+                            <option value="">-- Fokus Umum (Tanpa Spesifik Tugas) --</option>
+                        </select>
+                    </div>
+
                     <div class="flex gap-1.5 mb-6 bg-slate-900/60 p-1.5 rounded-2xl border border-white/10">
                         <button onclick="setPomoMode('work')" id="pomo-mode-work" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 shadow-md">Fokus (25m)</button>
                         <button onclick="setPomoMode('shortBreak')" id="pomo-mode-shortBreak" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Istirahat (5m)</button>
                         <button onclick="setPomoMode('longBreak')" id="pomo-mode-longBreak" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Panjang (15m)</button>
                     </div>
+
                     <div class="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center my-2">
                         <svg class="w-full h-full transform -rotate-90">
                             <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="transparent" />
@@ -332,6 +385,7 @@
                             <span id="pomoStatusText" class="text-[10px] font-bold text-sky-400 uppercase tracking-widest mt-1">Mode Fokus</span>
                         </div>
                     </div>
+
                     <div class="flex items-center gap-3 mt-6">
                         <button onclick="togglePomoTimer()" id="pomoStartBtn" class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-xl">Mulai Sesi</button>
                         <button onclick="resetPomoTimer()" class="bg-white/10 text-slate-200 text-xs font-semibold px-4 py-3 rounded-xl border border-white/10">Reset</button>
@@ -354,40 +408,53 @@
             </div>
         </section>
 
-        <!-- TAB 3: HABIT TRACKER -->
+        <!-- HABIT TRACKER -->
         <section id="tab-habits" class="tab-page hidden space-y-5">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white">Habit Tracker</h2>
+                <div>
+                    <h2 class="text-xl font-bold text-white">Habit Tracker</h2>
+                    <p class="text-xs text-slate-400">Konsistensi harian & riwayat penyelesaian mingguan.</p>
+                </div>
                 <button onclick="openHabitModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Kebiasaan</button>
             </div>
             <div id="habitsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </section>
 
-        <!-- TAB 4: FLASHCARDS -->
+        <!-- SMART FLASHCARDS -->
         <section id="tab-flashcards" class="tab-page hidden space-y-5">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white">Smart Flashcards</h2>
+                <div>
+                    <h2 class="text-xl font-bold text-white">Smart Flashcards</h2>
+                    <p class="text-xs text-slate-400">Latihan memori berbasis tingkat kesulitan.</p>
+                </div>
                 <button onclick="openFlashcardModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Kartu Baru</button>
             </div>
+
             <div class="max-w-md mx-auto space-y-5">
                 <div id="flashcardDeckArea" class="perspective-1000">
-                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-6 min-h-[220px] flex flex-col justify-between cursor-pointer relative shadow-xl border border-white/20">
-                        <div id="cardFront" class="backface-hidden flex flex-col items-center justify-center text-center my-auto">
-                            <span id="cardDeckTag" class="text-[9px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full mb-3">Materi</span>
+                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-6 min-h-[240px] flex flex-col justify-between cursor-pointer relative shadow-xl border border-white/20">
+                        <div id="cardFront" class="backface-hidden flex flex-col items-center justify-center text-center my-auto space-y-2">
+                            <span id="cardDeckTag" class="text-[9px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">Materi</span>
                             <p id="cardQuestionText" class="text-sm font-semibold text-slate-100">Tekan '+ Kartu Baru' untuk membuat materi baru.</p>
                         </div>
-                        <div id="cardBack" class="backface-hidden rotate-y-180 absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900/95 rounded-3xl border border-white/20">
-                            <span class="text-[9px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full mb-3">Jawaban</span>
+                        <div id="cardBack" class="backface-hidden rotate-y-180 absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900/95 rounded-3xl border border-white/20 space-y-3">
+                            <span class="text-[9px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">Jawaban</span>
                             <p id="cardAnswerText" class="text-xs text-slate-200">Penjelasan detail muncul di sini.</p>
                         </div>
                     </div>
                 </div>
+
+                <div id="flashcardReviewControls" class="grid grid-cols-3 gap-2 hidden">
+                    <button onclick="rateFlashcard('HARD')" class="bg-red-500/20 border border-red-500/30 text-red-300 py-2 rounded-xl text-xs font-bold">😣 Sulit</button>
+                    <button onclick="rateFlashcard('MEDIUM')" class="bg-amber-500/20 border border-amber-500/30 text-amber-300 py-2 rounded-xl text-xs font-bold">😐 Sedang</button>
+                    <button onclick="rateFlashcard('EASY')" class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 py-2 rounded-xl text-xs font-bold">😎 Mudah</button>
+                </div>
             </div>
         </section>
 
-        <!-- TAB 5: DAILY SAFE-SPEND -->
+        <!-- DAILY SAFE-SPEND -->
         <section id="tab-budget" class="tab-page hidden space-y-5">
-            <h2 class="text-xl font-bold text-white">Daily Safe-Spend Calculator</h2>
+            <h2 class="text-xl font-bold text-white">Daily Safe-Spend & Expense Tracker</h2>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div class="liquid-glass p-5 rounded-3xl space-y-3">
                     <h3 class="font-bold text-xs text-slate-200">Hitung Limit Harian</h3>
@@ -395,22 +462,38 @@
                     <div><label class="block text-[11px] text-slate-300 mb-1">Hari Tersisa</label><input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
                     <div><label class="block text-[11px] text-slate-300 mb-1">Target Tabungan (Rp)</label><input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
                 </div>
-                <div class="lg:col-span-2 liquid-glass p-6 rounded-3xl flex flex-col justify-between text-center">
-                    <div>
-                        <span class="text-[10px] uppercase text-slate-400 font-semibold">Batas Aman Belanja</span>
-                        <h3 id="bgSafeSpendDisplay" class="text-3xl font-extrabold text-sky-400 mt-1">Rp 65.000 / hari</h3>
+
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="liquid-glass p-5 rounded-3xl text-center">
+                        <span class="text-[10px] uppercase text-slate-400 font-semibold">Sisa Batas Aman Hari Ini</span>
+                        <h3 id="bgSafeSpendDisplay" class="text-3xl font-extrabold text-sky-400 mt-1">Rp 0 / hari</h3>
+                    </div>
+
+                    <div class="liquid-glass p-4 rounded-3xl space-y-3">
+                        <h4 class="text-xs font-bold text-white">+ Catat Pengeluaran Hari Ini</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="expenseName" placeholder="Contoh: Makan Siang" class="flex-1 bg-slate-900/80 border border-white/10 rounded-xl p-2 text-xs text-white">
+                            <input type="number" id="expenseAmount" placeholder="Rp Nominal" class="w-32 bg-slate-900/80 border border-white/10 rounded-xl p-2 text-xs text-white">
+                            <button onclick="addExpense()" class="bg-sky-500 text-slate-950 font-bold px-3 rounded-xl text-xs">Tambah</button>
+                        </div>
+                        <div id="expenseList" class="space-y-1.5 pt-2 max-h-40 overflow-y-auto text-xs"></div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 6: ANALYTICS -->
+        <!-- ANALYTICS -->
         <section id="tab-analytics" class="tab-page hidden space-y-5">
-            <h2 class="text-xl font-bold text-white">Analytics & Productivity Score</h2>
+            <h2 class="text-xl font-bold text-white">Analytics & Productivity Breakdown</h2>
             <div class="grid grid-cols-3 gap-3">
-                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Skor XP</span><div id="scoreValue" class="text-2xl font-extrabold text-sky-400 mt-1">0</div></div>
-                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Selesai</span><div id="analyticsTasksCompleted" class="text-2xl font-extrabold text-emerald-400 mt-1">0</div></div>
-                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Fokus</span><div id="analyticsPomoMinutes" class="text-2xl font-extrabold text-amber-400 mt-1">0m</div></div>
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Total XP Poin</span><div id="scoreValue" class="text-2xl font-extrabold text-sky-400 mt-1">0</div></div>
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Tugas Selesai</span><div id="analyticsTasksCompleted" class="text-2xl font-extrabold text-emerald-400 mt-1">0</div></div>
+                <div class="liquid-glass p-4 rounded-2xl"><span class="text-[10px] text-slate-400 uppercase">Menit Fokus</span><div id="analyticsPomoMinutes" class="text-2xl font-extrabold text-amber-400 mt-1">0m</div></div>
+            </div>
+
+            <div class="liquid-glass p-5 rounded-3xl space-y-3">
+                <h3 class="text-xs font-bold text-white">Distribusi Waktu Fokus per Mata Kuliah</h3>
+                <div id="courseFocusBreakdown" class="space-y-2 text-xs"></div>
             </div>
         </section>
 
@@ -418,7 +501,11 @@
 
     <!-- FLOATING BOTTOM NAV BAR -->
     <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 liquid-glass border-t border-white/15 px-3 py-2 flex items-center justify-around text-[10px] font-semibold">
-        <button onclick="switchTab('tasks')" id="bnav-tasks" class="flex flex-col items-center gap-1 text-sky-400">
+        <button onclick="switchTab('dashboard')" id="bnav-dashboard" class="flex flex-col items-center gap-1 text-sky-400">
+            <i class="fa-solid fa-house text-base"></i>
+            <span>Home</span>
+        </button>
+        <button onclick="switchTab('tasks')" id="bnav-tasks" class="flex flex-col items-center gap-1 text-slate-400">
             <i class="fa-solid fa-square-check text-base"></i>
             <span>Matrix</span>
         </button>
@@ -430,17 +517,9 @@
             <i class="fa-solid fa-fire text-base"></i>
             <span>Habit</span>
         </button>
-        <button onclick="switchTab('flashcards')" id="bnav-flashcards" class="flex flex-col items-center gap-1 text-slate-400">
-            <i class="fa-solid fa-brain text-base"></i>
-            <span>Cards</span>
-        </button>
-        <button onclick="switchTab('budget')" id="bnav-budget" class="flex flex-col items-center gap-1 text-slate-400">
-            <i class="fa-solid fa-wallet text-base"></i>
-            <span>Spend</span>
-        </button>
     </nav>
 
-    <!-- AUTH MODAL (PISAH LOGIN & REGISTRASI DINAMIS) -->
+    <!-- AUTH MODAL -->
     <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900/90 border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
             <div class="text-center">
@@ -510,82 +589,84 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT PROFILE -->
-    <div id="modalEditProfile" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-sm w-full space-y-4">
-            <h3 class="text-base font-bold text-white text-center">Edit Profil</h3>
-            <div class="space-y-3">
-                <input type="text" id="editProfileName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Nama Baru...">
-                <input type="text" id="editProfilePhoto" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="URL Foto Avatar (Opsional)...">
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeEditProfileModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button>
-                <button onclick="handleSaveProfile()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL TASK BERSIFAT INTERAKTIF (DENGAN DEADLINE) -->
+    <!-- MODAL TASK -->
     <div id="modalTask" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-3">
-            <h3 class="text-base font-bold text-white">Tambah Tugas Baru</h3>
-            <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Judul Tugas...">
-            <input type="text" id="inputTaskCourse" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Mata Pelajaran / Kuliah...">
+            <h3 id="modalTaskTitleHeader" class="text-base font-bold text-white">Tambah Tugas Baru</h3>
+            <input type="hidden" id="editTaskId">
             
-            <div>
-                <label class="block text-[10px] text-slate-400 mb-1">Tanggal Deadline</label>
-                <input type="date" id="inputTaskDueDate" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white">
+            <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Judul Tugas...">
+            
+            <select id="inputTaskCourseSelect" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
+                <option value="Umum">Mata Kuliah / Pelajaran...</option>
+            </select>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Tanggal Deadline</label>
+                    <input type="date" id="inputTaskDueDate" class="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Jam Deadline</label>
+                    <input type="time" id="inputTaskDueTime" class="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none">
+                </div>
             </div>
 
-            <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white">
+            <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
                 <option value="HIGH">Prioritas Tinggi</option>
                 <option value="MEDIUM" selected>Prioritas Sedang</option>
                 <option value="LOW">Prioritas Rendah</option>
             </select>
-            <div class="flex justify-end gap-3"><button onclick="closeTaskModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveTaskModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
+            
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeTaskModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button>
+                <button onclick="saveTaskModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button>
+            </div>
         </div>
     </div>
 
+    <!-- MODAL COURSE -->
+    <div id="modalCourse" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="text-base font-bold text-white">Tambah Mata Kuliah</h3>
+            <input type="text" id="inputCourseName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Mata Kuliah...">
+            <div class="flex justify-end gap-3"><button onclick="closeCourseModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveCourseModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
+        </div>
+    </div>
+
+    <!-- MODAL HABIT -->
     <div id="modalHabit" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
             <h3 class="text-base font-bold text-white">Kebiasaan Baru</h3>
-            <input type="text" id="inputHabitName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Nama Kebiasaan...">
+            <input type="text" id="inputHabitName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Kebiasaan...">
             <div class="flex justify-end gap-3"><button onclick="closeHabitModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveHabitModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
 
+    <!-- MODAL FLASHCARD -->
     <div id="modalFlashcard" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
             <h3 class="text-base font-bold text-white">Flashcard Baru</h3>
-            <input type="text" id="inputFlashDeck" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Kategori/Materi...">
-            <textarea id="inputFlashQuestion" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16" placeholder="Pertanyaan..."></textarea>
-            <textarea id="inputFlashAnswer" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16" placeholder="Jawaban..."></textarea>
+            <input type="text" id="inputFlashDeck" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Kategori/Materi...">
+            <textarea id="inputFlashQuestion" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16 outline-none" placeholder="Pertanyaan..."></textarea>
+            <textarea id="inputFlashAnswer" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16 outline-none" placeholder="Jawaban..."></textarea>
             <div class="flex justify-end gap-3"><button onclick="closeFlashcardModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveFlashcardModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
         </div>
     </div>
 
     <script>
-        window.state = { tasks: [], habits: [], flashcards: [], pomoCount: 0, pomoMinutes: 0, currentTaskFilterPriority: 'ALL', xpPoints: 0 };
-        const defaultState = {
-            tasks: [{ id: '1', title: 'Integrasi Firebase Auth & Deploy', course: 'Praktikum Web', priority: 'HIGH', status: 'done', dueDate: new Date().toISOString().split('T')[0] }],
-            habits: [{ id: '1', name: 'Belajar Koding 30 Menit', streak: 3, lastDone: new Date().toISOString().split('T')[0] }],
-            flashcards: [{ id: '1', deck: 'JavaScript', question: 'Apa fungsi LocalStorage?', answer: 'Penyimpanan data lokal di browser secara permanen.' }],
-            pomoCount: 2, pomoMinutes: 50, xpPoints: 120
-        };
+        window.state = { tasks: [], courses: [], habits: [], flashcards: [], expenses: [], pomoCount: 0, pomoMinutes: 0, currentTaskFilterPriority: 'ALL', xpPoints: 0, coursePomoMap: {} };
 
         let isRegisterMode = false;
 
-        window.onload = function() { loadFromLocalStorage(); renderAll(); calculateBudget(); };
+        window.onload = function() { renderAll(); calculateBudget(); updateDashboardDate(); };
 
-        function saveToLocalStorage() {
-            localStorage.setItem('nexa_master_data', JSON.stringify(window.state));
-            if (window.saveToFirebase) window.saveToFirebase();
-        }
-
-        function loadFromLocalStorage() {
-            const data = localStorage.getItem('nexa_master_data');
-            if (data) { try { window.state = JSON.parse(data); } catch(e) { window.state = defaultState; } }
-            else { window.state = defaultState; }
+        function updateDashboardDate() {
+            const dateDisplay = document.getElementById('dashboardDateDisplay');
+            if(dateDisplay) {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dateDisplay.innerText = new Date().toLocaleDateString('id-ID', options);
+            }
         }
 
         function toggleMobileDrawer() {
@@ -595,7 +676,6 @@
             overlay.classList.toggle('hidden');
         }
 
-        // FUNGSI UTAMA UNTUK CEK KLIK AVATAR MOBILE
         function handleMobileAvatarClick() {
             const userProfileCard = document.getElementById('userProfileCard');
             if (userProfileCard && !userProfileCard.classList.contains('hidden')) {
@@ -607,108 +687,173 @@
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const target = document.getElementById(`tab-${tabId}`);
+            if(target) target.classList.remove('hidden');
             
             document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('text-sky-400', 'bg-white/10'); el.classList.add('text-slate-400'); });
             const activeNav = document.getElementById(`nav-${tabId}`);
             if (activeNav) activeNav.classList.add('text-sky-400', 'bg-white/10');
 
-            const bnavBtns = ['tasks', 'pomodoro', 'habits', 'flashcards', 'budget'];
-            bnavBtns.forEach(btn => {
-                const bEl = document.getElementById(`bnav-${btn}`);
-                if(bEl) {
-                    if(btn === tabId) { bEl.classList.remove('text-slate-400'); bEl.classList.add('text-sky-400'); }
-                    else { bEl.classList.remove('text-sky-400'); bEl.classList.add('text-slate-400'); }
-                }
+            if(tabId === 'dashboard') renderDashboard();
+            if(tabId === 'analytics') updateAnalytics();
+            if(tabId === 'pomodoro') populatePomoTaskSelect();
+        }
+
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") alert("Notifikasi browser berhasil diaktifkan!");
+                });
+            }
+        }
+        function sendBrowserNotif(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body });
+            }
+        }
+
+        function handleGlobalSearch(query) {
+            const dropdown = document.getElementById('searchResultsDropdown');
+            if(!query.trim()) { dropdown.classList.add('hidden'); return; }
+
+            const q = query.toLowerCase();
+            let results = [];
+
+            (window.state.tasks || []).forEach(t => {
+                if(t.title.toLowerCase().includes(q)) results.push({ type: 'Task', title: t.title, tab: 'tasks' });
+            });
+            (window.state.courses || []).forEach(c => {
+                if(c.name.toLowerCase().includes(q)) results.push({ type: 'Matkul', title: c.name, tab: 'courses' });
+            });
+            (window.state.flashcards || []).forEach(f => {
+                if(f.question.toLowerCase().includes(q)) results.push({ type: 'Flashcard', title: f.question, tab: 'flashcards' });
             });
 
-            if(tabId === 'analytics') { updateAnalytics(); }
-        }
-
-        /* AUTH & PROFILE MODAL HANDLERS */
-        function openAuthModal() { document.getElementById('modalAuth').classList.remove('hidden'); document.getElementById('modalAuth').classList.add('flex'); }
-        function closeAuthModal() { document.getElementById('modalAuth').classList.add('hidden'); document.getElementById('modalAuth').classList.remove('flex'); }
-        function openEditProfileModal() { document.getElementById('modalEditProfile').classList.remove('hidden'); document.getElementById('modalEditProfile').classList.add('flex'); }
-        function closeEditProfileModal() { document.getElementById('modalEditProfile').classList.add('hidden'); document.getElementById('modalEditProfile').classList.remove('flex'); }
-
-        function toggleAuthMode() {
-            isRegisterMode = !isRegisterMode;
-            const registerFields = document.getElementById("registerFields");
-            const authTitle = document.getElementById("authTitle");
-            const authSubtitle = document.getElementById("authSubtitle");
-            const authSubmitBtn = document.getElementById("authSubmitBtn");
-            const authToggleText = document.getElementById("authToggleText");
-            const authToggleBtn = document.getElementById("authToggleBtn");
-
-            if (isRegisterMode) {
-                registerFields.classList.remove("hidden");
-                authTitle.innerText = "Buat Akun Nexa";
-                authSubtitle.innerText = "Lengkapi biodata untuk mendaftar";
-                authSubmitBtn.innerText = "Daftar";
-                authToggleText.innerText = "Sudah punya akun?";
-                authToggleBtn.innerText = "Masuk di sini";
+            dropdown.innerHTML = '';
+            if(results.length === 0) {
+                dropdown.innerHTML = `<div class="p-2 text-slate-400 text-center">Tidak ditemukan</div>`;
             } else {
-                registerFields.classList.add("hidden");
-                authTitle.innerText = "Masuk ke Nexa";
-                authSubtitle.innerText = "Silakan masuk dengan akun kamu";
-                authSubmitBtn.innerText = "Masuk";
-                authToggleText.innerText = "Belum punya akun?";
-                authToggleBtn.innerText = "Daftar sekarang";
+                results.slice(0, 5).forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'p-2 hover:bg-white/10 rounded-lg cursor-pointer flex justify-between items-center';
+                    item.innerHTML = `<span class="truncate font-semibold text-white">${r.title}</span><span class="text-[9px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-bold">${r.type}</span>`;
+                    item.onclick = () => { switchTab(r.tab); dropdown.classList.add('hidden'); };
+                    dropdown.appendChild(item);
+                });
             }
+            dropdown.classList.remove('hidden');
         }
 
-        function toggleSchoolField() {
-            const edu = document.getElementById("authEducation").value;
-            const schoolWrapper = document.getElementById("schoolFieldWrapper");
-            const schoolLabel = document.getElementById("authSchoolLabel");
-            const schoolInput = document.getElementById("authSchool");
+        /* DASHBOARD DENGAN URUTAN DEADLINE TANGGAL + JAM */
+        function renderDashboard() {
+            const tasks = window.state.tasks || [];
+            const habits = window.state.habits || [];
+            const todayStr = new Date().toISOString().split('T')[0];
 
-            if (edu) {
-                schoolWrapper.classList.remove("hidden");
-                if (edu === "Kuliah") {
-                    schoolLabel.innerText = "Nama Universitas / Perguruan Tinggi";
-                    schoolInput.placeholder = "contoh : Universitas Indonesia";
-                } else {
-                    schoolLabel.innerText = "Nama Sekolah";
-                    schoolInput.placeholder = "contoh : SMAN 1 Jakarta";
-                }
-            }
-        }
+            const pending = tasks.filter(t => t.status !== 'done').length;
+            const dueToday = tasks.filter(t => t.dueDate === todayStr && t.status !== 'done').length;
+            const focusMinutes = window.state.pomoMinutes || 0;
+            const maxStreak = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
 
-        function handleAuthSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById("authEmail").value;
-            const pass = document.getElementById("authPassword").value;
+            document.getElementById('dashPendingTasks').innerText = pending;
+            document.getElementById('dashTodayDue').innerText = dueToday;
+            document.getElementById('dashHabitStreak').innerText = `🔥 ${maxStreak}`;
+            document.getElementById('dashFocusTotal').innerText = `${focusMinutes}m`;
 
-            if (isRegisterMode) {
-                const name = document.getElementById("authName").value;
-                const education = document.getElementById("authEducation").value;
-                const school = document.getElementById("authSchool").value;
+            const listEl = document.getElementById('dashUpcomingTasksList');
+            listEl.innerHTML = '';
 
-                if (!name || !education || !school) {
-                    alert("Harap lengkapi seluruh biodata pendaftaran!");
-                    return;
-                }
-                window.fbRegister(email, pass, name, education, school);
+            const sortedPending = tasks
+                .filter(t => t.status !== 'done')
+                .sort((a, b) => {
+                    const dateA = a.dueDate
+                        ? new Date(`${a.dueDate}T${a.dueTime || '23:59'}`)
+                        : new Date('9999-12-31');
+
+                    const dateB = b.dueDate
+                        ? new Date(`${b.dueDate}T${b.dueTime || '23:59'}`)
+                        : new Date('9999-12-31');
+
+                    return dateA - dateB;
+                });
+
+            if(sortedPending.length === 0) {
+                listEl.innerHTML = `<div class="text-slate-500 italic">Tidak ada agenda tugas terdekat.</div>`;
             } else {
-                window.fbLogin(email, pass);
+                sortedPending.slice(0, 3).forEach(t => {
+                    const item = document.createElement('div');
+                    item.className = 'bg-slate-900/60 p-2.5 rounded-xl border border-white/10 flex items-center justify-between';
+                    item.innerHTML = `
+                        <div>
+                            <div class="font-bold text-white">${t.title}</div>
+                            <div class="text-[10px] text-slate-400">${t.course} · 📅 ${t.dueDate || 'Tanpa Deadline'} ${t.dueTime ? t.dueTime : ''}</div>
+                        </div>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${t.dueDate === todayStr ? 'bg-red-500/20 text-red-300' : 'bg-sky-500/20 text-sky-300'}">${t.dueDate === todayStr ? 'Hari Ini' : 'Mendekati'}</span>
+                    `;
+                    listEl.appendChild(item);
+                });
             }
         }
 
-        function handleSaveProfile() {
-            const newName = document.getElementById('editProfileName').value;
-            const newPhoto = document.getElementById('editProfilePhoto').value;
-            if(newName) { window.fbUpdateUserProfile(newName, newPhoto); closeEditProfileModal(); }
+        /* COURSES */
+        function renderCourses() {
+            const container = document.getElementById('coursesContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            const courses = window.state.courses || [];
+
+            courses.forEach(c => {
+                const card = document.createElement('div');
+                card.className = 'liquid-glass p-4 rounded-2xl flex items-center justify-between';
+                card.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-sm text-white">${c.name}</h4>
+                        <span class="text-[10px] text-slate-400">Aktif Semester Ini</span>
+                    </div>
+                    <button onclick="deleteCourse('${c.id}')" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-trash text-xs"></i></button>
+                `;
+                container.appendChild(card);
+            });
+
+            const selects = [document.getElementById('inputTaskCourseSelect'), document.getElementById('courseFilterSelect')];
+            selects.forEach(sel => {
+                if(!sel) return;
+                const isFilter = sel.id === 'courseFilterSelect';
+                sel.innerHTML = isFilter ? `<option value="ALL">Semua Mata Kuliah</option>` : `<option value="Umum">Umum</option>`;
+                courses.forEach(c => {
+                    sel.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                });
+            });
+        }
+        function openCourseModal() { document.getElementById('modalCourse').classList.remove('hidden'); document.getElementById('modalCourse').classList.add('flex'); }
+        function closeCourseModal() { document.getElementById('modalCourse').classList.add('hidden'); document.getElementById('modalCourse').classList.remove('flex'); }
+        function saveCourseModal() {
+            const name = document.getElementById('inputCourseName').value; if(!name) return;
+            if(!window.state.courses) window.state.courses = [];
+            window.state.courses.push({ id: Date.now().toString(), name });
+            if(window.saveData) window.saveData();
+            renderCourses(); closeCourseModal();
+        }
+        function deleteCourse(id) {
+            window.state.courses = window.state.courses.filter(c => c.id !== id);
+            if(window.saveData) window.saveData(); renderCourses();
         }
 
-        /* TASK MATRIX DENGAN SINKRONISASI XP POIN & DEADLINE */
+        /* TASK MATRIX COUNTDOWN REALTIME JAM & MENIT */
         function renderTasks() {
             const colTodo = document.getElementById('col-todo'), colInProgress = document.getElementById('col-inprogress'), colDone = document.getElementById('col-done');
+            if(!colTodo) return;
             colTodo.innerHTML = ''; colInProgress.innerHTML = ''; colDone.innerHTML = '';
             let countTodo = 0, countInProgress = 0, countDone = 0;
             const courseFilter = document.getElementById('courseFilterSelect').value;
 
-            window.state.tasks.forEach(task => {
+            const sortedTasks = [...(window.state.tasks || [])].sort((a,b) => {
+                const dateA = a.dueDate ? new Date(`${a.dueDate}T${a.dueTime || '23:59'}`) : new Date('9999-12-31');
+                const dateB = b.dueDate ? new Date(`${b.dueDate}T${b.dueTime || '23:59'}`) : new Date('9999-12-31');
+                return dateA - dateB;
+            });
+
+            sortedTasks.forEach(task => {
                 if(window.state.currentTaskFilterPriority !== 'ALL' && task.priority !== window.state.currentTaskFilterPriority) return;
                 if(courseFilter !== 'ALL' && task.course !== courseFilter) return;
 
@@ -717,6 +862,7 @@
                 else if (task.status === 'inprogress') { colInProgress.appendChild(card); countInProgress++; }
                 else if (task.status === 'done') { colDone.appendChild(card); countDone++; }
             });
+
             document.getElementById('count-todo').innerText = countTodo;
             document.getElementById('count-inprogress').innerText = countInProgress;
             document.getElementById('count-done').innerText = countDone;
@@ -724,23 +870,115 @@
 
         function createTaskCardElement(task) {
             const div = document.createElement('div');
-            div.className = 'liquid-glass p-3 rounded-2xl space-y-2 text-xs';
-            
-            let dateText = task.dueDate ? `📅 ${task.dueDate}` : 'Tanpa Deadline';
+            div.className = 'liquid-glass p-3.5 rounded-2xl space-y-2 text-xs relative border border-white/10';
+
+            let deadlineBadge = '';
+
+            if (task.dueDate) {
+                const now = new Date();
+                const dueDateTime = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
+
+                const diffMs = dueDateTime - now;
+                const diffMinutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
+                const diffHours = Math.floor(diffMinutes / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                const remainingHours = diffHours % 24;
+                const remainingMinutes = diffMinutes % 60;
+
+                if (diffMs < 0 && task.status !== 'done') {
+                    let overdueText = '';
+                    if (diffDays > 0) {
+                        overdueText = `${diffDays} hari lalu`;
+                    } else if (diffHours > 0) {
+                        overdueText = `${diffHours} jam lalu`;
+                    } else {
+                        overdueText = `${diffMinutes} menit lalu`;
+                    }
+
+                    deadlineBadge = `
+                        <span class="text-[9px] bg-red-500/20 text-red-400 font-bold px-2 py-0.5 rounded-md border border-red-500/30">
+                            🔴 Overdue (${overdueText})
+                        </span>
+                    `;
+                } 
+                else if (task.status !== 'done' && diffMs >= 0) {
+                    if (diffDays > 0) {
+                        deadlineBadge = `
+                            <span class="text-[9px] bg-sky-500/10 text-sky-300 font-semibold px-2 py-0.5 rounded-md">
+                                📅 ${diffDays} hari ${remainingHours} jam lagi
+                            </span>
+                        `;
+                    } 
+                    else if (diffHours > 0) {
+                        deadlineBadge = `
+                            <span class="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-md border border-amber-500/30">
+                                ⚡ ${diffHours} jam ${remainingMinutes} menit lagi
+                            </span>
+                        `;
+                    } 
+                    else {
+                        deadlineBadge = `
+                            <span class="text-[9px] bg-red-500/20 text-red-300 font-bold px-2 py-0.5 rounded-md border border-red-500/30">
+                                🔥 ${remainingMinutes} menit lagi
+                            </span>
+                        `;
+                    }
+                }
+                else if (task.status === 'done') {
+                    deadlineBadge = `
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-md">
+                            ✅ Selesai · ${task.dueDate}${task.dueTime ? ' ' + task.dueTime : ''}
+                        </span>
+                    `;
+                }
+            }
 
             div.innerHTML = `
-                <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">${task.course || 'Umum'}</span><span class="text-[10px] font-bold text-sky-400">${task.priority}</span></div>
-                <h4 class="font-bold text-xs text-white">${task.title}</h4>
-                <div class="text-[10px] text-slate-400">${dateText}</div>
-                <div class="flex items-center justify-between pt-1.5 border-t border-white/10">
-                    <select onchange="updateTaskStatus('${task.id}', this.value)" class="bg-slate-900 border border-white/10 text-slate-300 text-[10px] rounded p-1">
-                        <option value="todo" ${task.status==='todo'?'selected':''}>To-Do</option>
-                        <option value="inprogress" ${task.status==='inprogress'?'selected':''}>In Progress</option>
-                        <option value="done" ${task.status==='done'?'selected':''}>Done</option>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-medium text-[11px]">${task.course || 'Umum'}</span>
+                    <span class="text-[10px] font-bold ${
+                        task.priority === 'HIGH'
+                            ? 'text-red-400'
+                            : task.priority === 'MEDIUM'
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                    }">${task.priority}</span>
+                </div>
+
+                <h4 class="font-bold text-xs text-white leading-snug">${task.title}</h4>
+
+                <div class="flex items-center gap-1.5 pt-0.5">
+                    ${deadlineBadge}
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
+                    <select
+                        onchange="updateTaskStatus('${task.id}', this.value)"
+                        class="bg-slate-900 border border-white/10 text-slate-300 text-[10px] rounded p-1 outline-none"
+                    >
+                        <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To-Do</option>
+                        <option value="inprogress" ${task.status === 'inprogress' ? 'selected' : ''}>In Progress</option>
+                        <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
                     </select>
-                    <button onclick="deleteTask('${task.id}')" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-trash text-xs"></i></button>
+
+                    <div class="flex items-center gap-2">
+                        <button
+                            onclick="editTask('${task.id}')"
+                            class="text-slate-400 hover:text-sky-300"
+                        >
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </button>
+
+                        <button
+                            onclick="deleteTask('${task.id}')"
+                            class="text-slate-500 hover:text-red-400"
+                        >
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </div>
                 </div>
             `;
+
             return div;
         }
 
@@ -752,31 +990,88 @@
         }
 
         function updateTaskStatus(id, newStatus) {
-            const task = window.state.tasks.find(t => t.id === id);
+            const task = (window.state.tasks || []).find(t => t.id === id);
             if(task) { 
                 if(task.status !== 'done' && newStatus === 'done') {
-                    window.state.xpPoints = (window.state.xpPoints || 0) + 50; // Tambah 50 XP
+                    window.state.xpPoints = (window.state.xpPoints || 0) + 50; 
                 }
                 task.status = newStatus; 
-                saveToLocalStorage(); 
+                if(window.saveData) window.saveData(); 
                 renderTasks(); 
+                renderDashboard();
             }
         }
-        function deleteTask(id) { window.state.tasks = window.state.tasks.filter(t => t.id !== id); saveToLocalStorage(); renderTasks(); }
-        function openTaskModal() { document.getElementById('modalTask').classList.remove('hidden'); document.getElementById('modalTask').classList.add('flex'); }
-        function closeTaskModal() { document.getElementById('modalTask').classList.add('hidden'); document.getElementById('modalTask').classList.remove('flex'); }
-        function saveTaskModal() {
-            const title = document.getElementById('inputTaskTitle').value, 
-                  course = document.getElementById('inputTaskCourse').value, 
-                  dueDate = document.getElementById('inputTaskDueDate').value,
-                  priority = document.getElementById('inputTaskPriority').value;
-            if(!title) return;
-            window.state.tasks.push({ id: Date.now().toString(), title, course, dueDate, priority, status: 'todo' });
-            saveToLocalStorage(); renderTasks(); closeTaskModal();
+
+        function openTaskModal() {
+            document.getElementById('editTaskId').value = '';
+            document.getElementById('modalTaskTitleHeader').innerText = 'Tambah Tugas Baru';
+            document.getElementById('inputTaskTitle').value = '';
+            document.getElementById('inputTaskDueDate').value = '';
+            document.getElementById('inputTaskDueTime').value = '';
+            document.getElementById('modalTask').classList.remove('hidden'); document.getElementById('modalTask').classList.add('flex');
         }
 
-        /* POMODORO & SYNTH */
+        function editTask(id) {
+            const task = (window.state.tasks || []).find(t => t.id === id);
+            if(!task) return;
+
+            document.getElementById('editTaskId').value = task.id;
+            document.getElementById('modalTaskTitleHeader').innerText = 'Edit Tugas';
+            document.getElementById('inputTaskTitle').value = task.title;
+            document.getElementById('inputTaskCourseSelect').value = task.course || 'Umum';
+            document.getElementById('inputTaskDueDate').value = task.dueDate || '';
+            document.getElementById('inputTaskDueTime').value = task.dueTime || '';
+            document.getElementById('inputTaskPriority').value = task.priority || 'MEDIUM';
+
+            document.getElementById('modalTask').classList.remove('hidden'); document.getElementById('modalTask').classList.add('flex');
+        }
+
+        function closeTaskModal() { document.getElementById('modalTask').classList.add('hidden'); document.getElementById('modalTask').classList.remove('flex'); }
+
+        function saveTaskModal() {
+            const editId = document.getElementById('editTaskId').value;
+            const title = document.getElementById('inputTaskTitle').value;
+            const course = document.getElementById('inputTaskCourseSelect').value;
+            const dueDate = document.getElementById('inputTaskDueDate').value;
+            const dueTime = document.getElementById('inputTaskDueTime').value;
+            const priority = document.getElementById('inputTaskPriority').value;
+
+            if(!title) return;
+
+            if(!window.state.tasks) window.state.tasks = [];
+
+            if(editId) {
+                const idx = window.state.tasks.findIndex(t => t.id === editId);
+                if(idx !== -1) {
+                    window.state.tasks[idx] = { ...window.state.tasks[idx], title, course, dueDate, dueTime, priority };
+                }
+            } else {
+                window.state.tasks.push({ id: Date.now().toString(), title, course, dueDate, dueTime, priority, status: 'todo' });
+            }
+
+            if(window.saveData) window.saveData(); 
+            renderTasks(); 
+            renderDashboard();
+            closeTaskModal();
+        }
+
+        function deleteTask(id) { 
+            window.state.tasks = window.state.tasks.filter(t => t.id !== id); 
+            if(window.saveData) window.saveData(); renderTasks(); renderDashboard();
+        }
+
+        /* POMODORO */
         let pomoState = { mode: 'work', timeTotal: 25 * 60, timeLeft: 25 * 60, timerId: null, isRunning: false };
+        
+        function populatePomoTaskSelect() {
+            const sel = document.getElementById('pomoTaskSelect');
+            if(!sel) return;
+            sel.innerHTML = `<option value="">-- Fokus Umum (Tanpa Spesifik Tugas) --</option>`;
+            (window.state.tasks || []).filter(t => t.status !== 'done').forEach(t => {
+                sel.innerHTML += `<option value="${t.id}">${t.title} (${t.course || 'Umum'})</option>`;
+            });
+        }
+
         function setPomoMode(mode) {
             pomoState.mode = mode; pomoState.timeTotal = mode === 'work' ? 25*60 : (mode === 'shortBreak' ? 5*60 : 15*60);
             pomoState.timeLeft = pomoState.timeTotal; pausePomoTimer(); updatePomoDisplay();
@@ -789,10 +1084,21 @@
                 if(pomoState.timeLeft <= 0) {
                     pausePomoTimer();
                     if(pomoState.mode === 'work') { 
-                        window.state.pomoCount++; 
-                        window.state.pomoMinutes += 25; 
+                        window.state.pomoCount = (window.state.pomoCount || 0) + 1; 
+                        window.state.pomoMinutes = (window.state.pomoMinutes || 0) + 25; 
                         window.state.xpPoints = (window.state.xpPoints || 0) + 30; 
-                        saveToLocalStorage(); 
+                        
+                        const selectedTaskId = document.getElementById('pomoTaskSelect').value;
+                        if(selectedTaskId) {
+                            const task = window.state.tasks.find(t => t.id === selectedTaskId);
+                            if(task && task.course) {
+                                if(!window.state.coursePomoMap) window.state.coursePomoMap = {};
+                                window.state.coursePomoMap[task.course] = (window.state.coursePomoMap[task.course] || 0) + 25;
+                            }
+                        }
+
+                        if(window.saveData) window.saveData(); 
+                        sendBrowserNotif("Sesi Fokus Selesai!", "Kerja bagus! Waktunya istirahat 5 menit.");
                     }
                     alert('Sesi Fokus Selesai! Kamu mendapatkan +30 XP.'); resetPomoTimer();
                 }
@@ -829,82 +1135,308 @@
             }
         }
 
-        /* HABIT TRACKER */
+        /* HABIT TRACKER REAL STREAK */
         function renderHabits() {
-            const container = document.getElementById('habitsContainer'); container.innerHTML = '';
-            const todayStr = new Date().toISOString().split('T')[0];
-            window.state.habits.forEach(habit => {
-                const isDoneToday = habit.lastDone === todayStr;
+            const container = document.getElementById('habitsContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            (window.state.habits || []).forEach(habit => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const completedDates = habit.completedDates || [];
+                const isDoneToday = completedDates.includes(todayStr);
+
+                let streak = 0;
+                let checkDate = new Date();
+
+                while (true) {
+                    const dateStr = checkDate.toISOString().split('T')[0];
+
+                    if (completedDates.includes(dateStr)) {
+                        streak++;
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+
+                habit.streak = streak;
+
                 const card = document.createElement('div');
                 card.className = 'liquid-glass p-5 rounded-2xl flex flex-col justify-between space-y-3';
+
                 card.innerHTML = `
-                    <div class="flex items-center justify-between"><h4 class="font-bold text-xs text-white">${habit.name}</h4><button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button></div>
-                    <div class="flex items-center gap-2"><span class="text-xl font-extrabold text-sky-400">🔥 ${habit.streak}</span><span class="text-[10px] text-slate-400">Hari Beruntun</span></div>
-                    <button onclick="toggleHabitDone('${habit.id}')" class="w-full py-2.5 rounded-xl text-xs font-bold ${isDoneToday ? 'bg-emerald-500/20 text-emerald-300' : 'bg-sky-500 text-slate-950'}">${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai'}</button>
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs text-white">${habit.name}</h4>
+                        <button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-red-400 text-xs">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold text-sky-400">🔥 ${streak}</span>
+                        <span class="text-[10px] text-slate-400">Hari Beruntun</span>
+                    </div>
+
+                    <button
+                        onclick="toggleHabitDone('${habit.id}')"
+                        class="w-full py-2.5 rounded-xl text-xs font-bold ${
+                            isDoneToday
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-sky-500 text-slate-950'
+                        }"
+                    >
+                        ${isDoneToday ? '✅ Selesai Hari Ini' : 'Tandai Selesai'}
+                    </button>
                 `;
+
                 container.appendChild(card);
             });
         }
+
         function toggleHabitDone(id) {
-            const habit = window.state.habits.find(h => h.id === id);
-            if(habit) {
-                const todayStr = new Date().toISOString().split('T')[0];
-                if(habit.lastDone === todayStr) { habit.lastDone = ''; habit.streak = Math.max(0, habit.streak - 1); }
-                else { 
-                    habit.lastDone = todayStr; 
-                    habit.streak += 1; 
-                    window.state.xpPoints = (window.state.xpPoints || 0) + 20; // Tambah 20 XP per Habit
-                }
-                saveToLocalStorage(); renderHabits();
+            const habit = (window.state.habits || []).find(h => h.id === id);
+            if (!habit) return;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            if (!habit.completedDates) {
+                habit.completedDates = [];
             }
-        }
-        function deleteHabit(id) { window.state.habits = window.state.habits.filter(h => h.id !== id); saveToLocalStorage(); renderHabits(); }
-        function openHabitModal() { document.getElementById('modalHabit').classList.remove('hidden'); document.getElementById('modalHabit').classList.add('flex'); }
-        function closeHabitModal() { document.getElementById('modalHabit').classList.add('hidden'); document.getElementById('modalHabit').classList.remove('flex'); }
-        function saveHabitModal() {
-            const name = document.getElementById('inputHabitName').value; if(!name) return;
-            window.state.habits.push({ id: Date.now().toString(), name, streak: 0, lastDone: '' });
-            saveToLocalStorage(); renderHabits(); closeHabitModal();
+
+            const index = habit.completedDates.indexOf(todayStr);
+
+            if (index !== -1) {
+                habit.completedDates.splice(index, 1);
+            } else {
+                habit.completedDates.push(todayStr);
+                window.state.xpPoints = (window.state.xpPoints || 0) + 20;
+            }
+
+            let streak = 0;
+            let checkDate = new Date();
+
+            while (true) {
+                const dateStr = checkDate.toISOString().split('T')[0];
+
+                if (habit.completedDates.includes(dateStr)) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+
+            habit.streak = streak;
+
+            if (window.saveData) window.saveData();
+
+            renderHabits();
+            renderDashboard();
         }
 
-        /* FLASHCARDS */
+        function openHabitModal() { document.getElementById('modalHabit').classList.remove('hidden'); document.getElementById('modalHabit').classList.add('flex'); }
+        function closeHabitModal() { document.getElementById('modalHabit').classList.add('hidden'); document.getElementById('modalHabit').classList.remove('flex'); }
+
+        function saveHabitModal() {
+            const name = document.getElementById('inputHabitName').value.trim();
+            if (!name) return;
+
+            if (!window.state.habits) {
+                window.state.habits = [];
+            }
+
+            window.state.habits.push({
+                id: Date.now().toString(),
+                name,
+                streak: 0,
+                lastDone: '',
+                completedDates: []
+            });
+
+            if (window.saveData) window.saveData();
+
+            renderHabits();
+            renderDashboard();
+            closeHabitModal();
+        }
+
+        function deleteHabit(id) { 
+            window.state.habits = window.state.habits.filter(h => h.id !== id); 
+            if(window.saveData) window.saveData(); renderHabits(); renderDashboard();
+        }
+
+        /* SMART FLASHCARDS REVIEW DATA SAVING */
         let currentFlashcardIdx = 0, isCardFlipped = false;
+
         function renderFlashcards() {
-            if(window.state.flashcards.length === 0) return;
-            const card = window.state.flashcards[currentFlashcardIdx];
+            const cards = window.state.flashcards || [];
+            if(cards.length === 0) return;
+            const card = cards[currentFlashcardIdx % cards.length];
             document.getElementById('cardDeckTag').innerText = card.deck || 'Umum';
             document.getElementById('cardQuestionText').innerText = card.question;
             document.getElementById('cardAnswerText').innerText = card.answer;
         }
+
         function flipCard() {
             const cardEl = document.getElementById('flashcardCard'); isCardFlipped = !isCardFlipped;
-            if(isCardFlipped) cardEl.classList.add('rotate-y-180'); else cardEl.classList.remove('rotate-y-180');
+            if(isCardFlipped) {
+                cardEl.classList.add('rotate-y-180');
+                document.getElementById('flashcardReviewControls').classList.remove('hidden');
+            } else {
+                cardEl.classList.remove('rotate-y-180');
+                document.getElementById('flashcardReviewControls').classList.add('hidden');
+            }
         }
+
+        function rateFlashcard(difficulty) {
+            const cards = window.state.flashcards || [];
+            if (cards.length === 0) return;
+
+            const card = cards[currentFlashcardIdx % cards.length];
+
+            card.lastReviewed = new Date().toISOString();
+            card.lastDifficulty = difficulty;
+
+            if (!card.reviewCount) {
+                card.reviewCount = 0;
+            }
+
+            card.reviewCount++;
+
+            if (difficulty === 'HARD') {
+                card.nextReviewDays = 1;
+            } else if (difficulty === 'MEDIUM') {
+                card.nextReviewDays = 3;
+            } else if (difficulty === 'EASY') {
+                card.nextReviewDays = 7;
+            }
+
+            if (window.saveData) {
+                window.saveData();
+            }
+
+            isCardFlipped = false;
+
+            const cardEl = document.getElementById('flashcardCard');
+            if (cardEl) {
+                cardEl.classList.remove('rotate-y-180');
+            }
+
+            document.getElementById('flashcardReviewControls').classList.add('hidden');
+
+            currentFlashcardIdx++;
+            renderFlashcards();
+        }
+
         function openFlashcardModal() { document.getElementById('modalFlashcard').classList.remove('hidden'); document.getElementById('modalFlashcard').classList.add('flex'); }
         function closeFlashcardModal() { document.getElementById('modalFlashcard').classList.add('hidden'); document.getElementById('modalFlashcard').classList.remove('flex'); }
+        
         function saveFlashcardModal() {
             const deck = document.getElementById('inputFlashDeck').value, question = document.getElementById('inputFlashQuestion').value, answer = document.getElementById('inputFlashAnswer').value;
             if(!question || !answer) return;
+            if(!window.state.flashcards) window.state.flashcards = [];
             window.state.flashcards.push({ id: Date.now().toString(), deck, question, answer });
-            saveToLocalStorage(); renderFlashcards(); closeFlashcardModal();
+            if(window.saveData) window.saveData(); renderFlashcards(); closeFlashcardModal();
         }
 
-        /* BUDGET CALCULATOR */
+        /* DAILY SAFE-SPEND FILTERED BY TODAY EXPENSES & INFORMATIVE EXPENSE LIST */
         function calculateBudget() {
             const balance = parseFloat(document.getElementById('bgBalance').value) || 0;
             const days = parseFloat(document.getElementById('bgDays').value) || 1;
             const savings = parseFloat(document.getElementById('bgSavings').value) || 0;
-            const netBalance = Math.max(0, balance - savings);
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const todayExpenses = (window.state.expenses || [])
+                .filter(e => e.date && e.date.split('T')[0] === todayStr)
+                .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+            const netBalance = Math.max(0, balance - savings - todayExpenses);
             const dailyLimit = Math.floor(netBalance / days);
+
             document.getElementById('bgSafeSpendDisplay').innerText = `Rp ${dailyLimit.toLocaleString('id-ID')} / hari`;
+
+            renderExpenses();
+        }
+
+        function addExpense() {
+            const name = document.getElementById('expenseName').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value) || 0;
+            if(!name || amount <= 0) return;
+
+            if(!window.state.expenses) window.state.expenses = [];
+            window.state.expenses.push({ id: Date.now().toString(), name, amount, date: new Date().toISOString() });
+            
+            document.getElementById('expenseName').value = '';
+            document.getElementById('expenseAmount').value = '';
+
+            if(window.saveData) window.saveData();
+            calculateBudget();
+        }
+
+        function renderExpenses() {
+            const listEl = document.getElementById('expenseList');
+            if (!listEl) return;
+
+            listEl.innerHTML = '';
+
+            const expenses = window.state.expenses || [];
+
+            if (expenses.length === 0) {
+                listEl.innerHTML = `<div class="text-slate-500 italic text-xs">Belum ada pengeluaran.</div>`;
+                return;
+            }
+
+            [...expenses]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .forEach(e => {
+                    const date = e.date
+                        ? new Date(e.date).toLocaleDateString('id-ID', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        })
+                        : '-';
+
+                    const item = document.createElement('div');
+                    item.className = 'bg-slate-900/60 p-2 rounded-xl border border-white/10 flex justify-between items-center';
+
+                    item.innerHTML = `
+                        <div>
+                            <div class="text-slate-300 font-medium">${e.name}</div>
+                            <div class="text-[9px] text-slate-500">${date}</div>
+                        </div>
+                        <span class="text-red-400 font-bold">- Rp ${Number(e.amount || 0).toLocaleString('id-ID')}</span>
+                    `;
+
+                    listEl.appendChild(item);
+                });
         }
 
         /* ANALYTICS */
         function updateAnalytics() {
-            const completedTasks = window.state.tasks.filter(t => t.status === 'done').length;
+            const completedTasks = (window.state.tasks || []).filter(t => t.status === 'done').length;
             document.getElementById('analyticsTasksCompleted').innerText = completedTasks;
-            document.getElementById('analyticsPomoMinutes').innerText = window.state.pomoMinutes + 'm';
+            document.getElementById('analyticsPomoMinutes').innerText = (window.state.pomoMinutes || 0) + 'm';
             document.getElementById('scoreValue').innerText = window.state.xpPoints || 0;
+
+            const breakdownEl = document.getElementById('courseFocusBreakdown');
+            if(breakdownEl) {
+                breakdownEl.innerHTML = '';
+                const map = window.state.coursePomoMap || {};
+                if(Object.keys(map).length === 0) {
+                    breakdownEl.innerHTML = `<div class="text-slate-500 italic">Belum ada durasi fokus tercatat per mata kuliah.</div>`;
+                } else {
+                    Object.keys(map).forEach(cName => {
+                        const mins = map[cName];
+                        const item = document.createElement('div');
+                        item.className = 'bg-slate-900/60 p-2.5 rounded-xl border border-white/10 flex justify-between items-center';
+                        item.innerHTML = `<span class="font-bold text-white">${cName}</span><span class="text-sky-400 font-bold">${mins} Menit Fokus</span>`;
+                        breakdownEl.appendChild(item);
+                    });
+                }
+            }
         }
 
         /* EXPORT & IMPORT JSON */
@@ -920,13 +1452,28 @@
             fileReader.onload = function(e) {
                 try {
                     const importedState = JSON.parse(e.target.result);
-                    if(importedState.tasks) { window.state = importedState; saveToLocalStorage(); renderAll(); alert('Data berhasil di-import!'); }
+                    if(importedState.tasks) { 
+                        window.state = importedState; 
+                        if(window.saveData) window.saveData(); 
+                        renderAll(); 
+                        alert('Data berhasil di-import!'); 
+                    }
                 } catch(err) { alert('Format file JSON tidak valid!'); }
             };
             fileReader.readAsText(event.target.files[0]);
         }
 
-        window.renderAll = function() { renderTasks(); renderHabits(); renderFlashcards(); updatePomoDisplay(); };
+        /* RENDER ALL TERMASUK EXPENSES & ANALYTICS */
+        window.renderAll = function() {
+            renderCourses();
+            renderTasks();
+            renderHabits();
+            renderFlashcards();
+            renderExpenses();
+            updatePomoDisplay();
+            renderDashboard();
+            updateAnalytics();
+        };
     </script>
 </body>
 </html>
