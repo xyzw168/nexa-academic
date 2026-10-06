@@ -15,14 +15,14 @@
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyA-ergpCw7j5iAZKM9EjajVY-KvaDkA0Jw",
-            authDomain: "nexa-academic.firebaseapp.com",
-            projectId: "nexa-academic",
-            storageBucket: "nexa-academic.firebasestorage.app",
-            messagingSenderId: "705232349976",
-            appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
-            measurementId: "G-FLJSHK0P8Q"
-        };
+        apiKey: window.FIREBASE_API_KEY || "",
+        authDomain: "nexa-academic.firebaseapp.com",
+        projectId: "nexa-academic",
+        storageBucket: "nexa-academic.firebasestorage.app",
+        messagingSenderId: "705232349976",
+        appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
+        measurementId: "G-FLJSHK0P8Q"
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -461,15 +461,15 @@
             <div class="space-y-2.5">
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-300 mb-1">Nama Lengkap</label>
-                    <input type="text" id="authName" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="Contoh: Alex Pratama">
+                    <input type="text" id="authName" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="masukan nama">
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-300 mb-1">Alamat Email</label>
-                    <input type="email" id="authEmail" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="nama@mahasiswa.ac.id">
+                    <input type="email" id="authEmail" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="contoh : nama@gmail.com">
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-300 mb-1">Kata Sandi</label>
-                    <input type="password" id="authPassword" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="Minimal 6 karakter">
+                    <input type="password" id="authPassword" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="minimal 6 karakter">
                 </div>
             </div>
 
