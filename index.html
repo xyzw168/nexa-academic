@@ -11,18 +11,18 @@
     <!-- Firebase SDK (v10 HTML Script Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-    apiKey: atob("QUl6YVN5QS1lcmdwQ3c3ajVpQVpLTTlFamFqVlktS3ZhRGtBMEp3"),
-    authDomain: "nexa-academic.firebaseapp.com",
-    projectId: "nexa-academic",
-    storageBucket: "nexa-academic.firebasestorage.app",
-    messagingSenderId: "705232349976",
-    appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
-    measurementId: "G-FLJSHK0P8Q"
-};
+        const firebaseConfig = {
+            apiKey: atob("QUl6YVN5QS1lcmdwQ3c3ajVpQVpLTTlFamFqVlktS3ZhRGtBMEp3"),
+            authDomain: "nexa-academic.firebaseapp.com",
+            projectId: "nexa-academic",
+            storageBucket: "nexa-academic.firebasestorage.app",
+            messagingSenderId: "705232349976",
+            appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
+            measurementId: "G-FLJSHK0P8Q"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -31,7 +31,7 @@ const firebaseConfig = {
 
         window.fbGoogleLogin = async () => {
             try {
-                const result = await signInWithPopup(auth, googleProvider);
+                const result = await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
                 await setDoc(doc(db, "users", result.user.uid), window.state, { merge: true });
                 alert("Login dengan Google berhasil!");
                 closeAuthModal();
@@ -40,12 +40,19 @@ const firebaseConfig = {
             }
         };
 
-        window.fbRegister = async (email, pass, name) => {
+        window.fbRegister = async (email, pass, name, education, school) => {
             try {
                 const res = await createUserWithEmailAndPassword(auth, email, pass);
                 await updateProfile(res.user, { displayName: name || email.split('@')[0] });
-                await setDoc(doc(db, "users", res.user.uid), window.state);
-                alert("Registrasi berhasil!");
+                await setDoc(doc(db, "users", res.user.uid), {
+                    ...window.state,
+                    name: name,
+                    email: email,
+                    education: education,
+                    school: school,
+                    createdAt: new Date().toISOString()
+                }, { merge: true });
+                alert("Registrasi berhasil! Selamat datang, " + name);
                 closeAuthModal();
             } catch (err) { alert("Gagal daftar: " + err.message); }
         };
@@ -80,7 +87,7 @@ const firebaseConfig = {
         window.saveToFirebase = async () => {
             if (auth.currentUser) {
                 try {
-                    await setDoc(doc(db, "users", auth.currentUser.uid), window.state);
+                    await setDoc(doc(db, "users", auth.currentUser.uid), window.state, { merge: true });
                 } catch(e) { console.error("Cloud sync error", e); }
             }
         };
@@ -431,12 +438,12 @@ const firebaseConfig = {
         </button>
     </nav>
 
-    <!-- AUTH MODAL (DIPERBARUI DENGAN GOOGLE SIGN-IN & PLACEHOLDER RAPI) -->
+    <!-- AUTH MODAL (PISAH LOGIN & REGISTRASI DINAMIS) -->
     <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="liquid-glass bg-slate-900/90 border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
             <div class="text-center">
-                <h3 class="text-lg font-bold text-white">Masuk ke Nexa</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Sinkronkan data tugas & fokus antar-perangkat</p>
+                <h3 id="authTitle" class="text-lg font-bold text-white">Masuk ke Nexa</h3>
+                <p id="authSubtitle" class="text-[11px] text-slate-400 mt-0.5">Silakan masuk dengan akun kamu</p>
             </div>
 
             <!-- Tombol Google Login -->
@@ -457,26 +464,51 @@ const firebaseConfig = {
                 <div class="flex-grow border-t border-white/10"></div>
             </div>
 
-            <!-- Form Email / Password -->
-            <div class="space-y-2.5">
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Nama Lengkap</label>
-                    <input type="text" id="authName" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="masukan nama">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Alamat Email</label>
-                    <input type="email" id="authEmail" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="contoh : nama@gmail.com">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-300 mb-1">Kata Sandi</label>
-                    <input type="password" id="authPassword" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="minimal 6 karakter">
-                </div>
-            </div>
+            <!-- Form Email / Password / Biodata -->
+            <form id="authForm" onsubmit="handleAuthSubmit(event)">
+                <div class="space-y-2.5">
+                    <!-- Field Khusus Registrasi -->
+                    <div id="registerFields" class="hidden space-y-2.5">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-300 mb-1">Nama Lengkap</label>
+                            <input type="text" id="authName" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="masukan nama">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-300 mb-1">Jenjang Pendidikan</label>
+                            <select id="authEducation" onchange="toggleSchoolField()" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400">
+                                <option value="" disabled selected>Pilih Jenjang Pendidikan</option>
+                                <option value="SD">SD / Sederajat</option>
+                                <option value="SMP">SMP / Sederajat</option>
+                                <option value="SMA">SMA / SMK / Sederajat</option>
+                                <option value="Kuliah">Perguruan Tinggi / Kuliah</option>
+                            </select>
+                        </div>
+                        <div id="schoolFieldWrapper" class="hidden">
+                            <label id="authSchoolLabel" class="block text-[10px] font-semibold text-slate-300 mb-1">Nama Sekolah / Universitas</label>
+                            <input type="text" id="authSchool" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="masukan nama sekolah/univ">
+                        </div>
+                    </div>
 
-            <div class="grid grid-cols-2 gap-2.5 pt-1">
-                <button onclick="handleLogin()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all">Masuk</button>
-                <button onclick="handleRegister()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all">Daftar</button>
-            </div>
+                    <!-- Field Login & Registrasi -->
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-300 mb-1">Alamat Email</label>
+                        <input type="email" id="authEmail" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="contoh : nama@gmail.com" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-300 mb-1">Kata Sandi</label>
+                        <input type="password" id="authPassword" class="w-full bg-slate-800/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400" placeholder="minimal 6 karakter" required minlength="6">
+                    </div>
+                </div>
+
+                <div class="pt-3">
+                    <button type="submit" id="authSubmitBtn" class="w-full px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all">Masuk</button>
+                </div>
+            </form>
+
+            <p class="text-center text-xs text-slate-400 pt-1">
+                <span id="authToggleText">Belum punya akun?</span>
+                <a href="javascript:void(0)" id="authToggleBtn" onclick="toggleAuthMode()" class="text-sky-400 font-bold hover:underline ml-1">Daftar sekarang</a>
+            </p>
             <button onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-500 hover:text-slate-300 pt-1">Tutup</button>
         </div>
     </div>
@@ -537,6 +569,8 @@ const firebaseConfig = {
             pomoCount: 2, pomoMinutes: 50
         };
 
+        let isRegisterMode = false;
+
         window.onload = function() { loadFromLocalStorage(); renderAll(); calculateBudget(); };
 
         function saveToLocalStorage() {
@@ -583,14 +617,73 @@ const firebaseConfig = {
         function openEditProfileModal() { document.getElementById('modalEditProfile').classList.remove('hidden'); document.getElementById('modalEditProfile').classList.add('flex'); }
         function closeEditProfileModal() { document.getElementById('modalEditProfile').classList.add('hidden'); document.getElementById('modalEditProfile').classList.remove('flex'); }
 
-        function handleLogin() {
-            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value;
-            if(email && pass) { window.fbLogin(email, pass); }
+        // Switch Mode Login <-> Daftar
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            const registerFields = document.getElementById("registerFields");
+            const authTitle = document.getElementById("authTitle");
+            const authSubtitle = document.getElementById("authSubtitle");
+            const authSubmitBtn = document.getElementById("authSubmitBtn");
+            const authToggleText = document.getElementById("authToggleText");
+            const authToggleBtn = document.getElementById("authToggleBtn");
+
+            if (isRegisterMode) {
+                registerFields.classList.remove("hidden");
+                authTitle.innerText = "Buat Akun Nexa";
+                authSubtitle.innerText = "Lengkapi biodata untuk mendaftar";
+                authSubmitBtn.innerText = "Daftar";
+                authToggleText.innerText = "Sudah punya akun?";
+                authToggleBtn.innerText = "Masuk di sini";
+            } else {
+                registerFields.classList.add("hidden");
+                authTitle.innerText = "Masuk ke Nexa";
+                authSubtitle.innerText = "Silakan masuk dengan akun kamu";
+                authSubmitBtn.innerText = "Masuk";
+                authToggleText.innerText = "Belum punya akun?";
+                authToggleBtn.innerText = "Daftar sekarang";
+            }
         }
-        function handleRegister() {
-            const email = document.getElementById('authEmail').value, pass = document.getElementById('authPassword').value, name = document.getElementById('authName').value;
-            if(email && pass) { window.fbRegister(email, pass, name); }
+
+        // Toggle Input Sekolah/Univ Berdasarkan Jenjang
+        function toggleSchoolField() {
+            const edu = document.getElementById("authEducation").value;
+            const schoolWrapper = document.getElementById("schoolFieldWrapper");
+            const schoolLabel = document.getElementById("authSchoolLabel");
+            const schoolInput = document.getElementById("authSchool");
+
+            if (edu) {
+                schoolWrapper.classList.remove("hidden");
+                if (edu === "Kuliah") {
+                    schoolLabel.innerText = "Nama Universitas / Perguruan Tinggi";
+                    schoolInput.placeholder = "contoh : Universitas Indonesia";
+                } else {
+                    schoolLabel.innerText = "Nama Sekolah";
+                    schoolInput.placeholder = "contoh : SMAN 1 Jakarta";
+                }
+            }
         }
+
+        // Submit Form Login / Register
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById("authEmail").value;
+            const pass = document.getElementById("authPassword").value;
+
+            if (isRegisterMode) {
+                const name = document.getElementById("authName").value;
+                const education = document.getElementById("authEducation").value;
+                const school = document.getElementById("authSchool").value;
+
+                if (!name || !education || !school) {
+                    alert("Harap lengkapi seluruh biodata pendaftaran!");
+                    return;
+                }
+                window.fbRegister(email, pass, name, education, school);
+            } else {
+                window.fbLogin(email, pass);
+            }
+        }
+
         function handleSaveProfile() {
             const newName = document.getElementById('editProfileName').value;
             const newPhoto = document.getElementById('editProfilePhoto').value;
