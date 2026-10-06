@@ -14,14 +14,14 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-        apiKey: window.FIREBASE_API_KEY || "",
-        authDomain: "nexa-academic.firebaseapp.com",
-        projectId: "nexa-academic",
-        storageBucket: "nexa-academic.firebasestorage.app",
-        messagingSenderId: "705232349976",
-        appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
-        measurementId: "G-FLJSHK0P8Q"
+const firebaseConfig = {
+    apiKey: atob("QUl6YVN5QS1lcmdwQ3c3ajVpQVpLTTlFamFqVlktS3ZhRGtBMEp3"),
+    authDomain: "nexa-academic.firebaseapp.com",
+    projectId: "nexa-academic",
+    storageBucket: "nexa-academic.firebasestorage.app",
+    messagingSenderId: "705232349976",
+    appId: "1:705232349976:web:6acf2393eb3a31b1370c6d",
+    measurementId: "G-FLJSHK0P8Q"
 };
 
         const app = initializeApp(firebaseConfig);
