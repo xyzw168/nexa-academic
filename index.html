@@ -3,7 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexa - Academic Focus Hub</title>
+    <meta id="themeColorMeta" name="theme-color" content="#f4f2eb">
+    <meta name="description" content="Nexa Academic Focus Hub membantu mengatur fokus, tugas, jadwal, kebiasaan, dan keuangan belajar.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="icon" type="image/svg+xml" href="nexa-mark.svg">
+    <link rel="apple-touch-icon" href="icons/nexa-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <title>Nexa — Academic Focus Hub</title>
+    <script>
+        try {
+            const savedTheme = localStorage.getItem('nexa_theme');
+            document.documentElement.dataset.theme = savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        } catch { document.documentElement.dataset.theme = 'light'; }
+    </script>
         <link rel="stylesheet" href="style.css">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +29,7 @@
             theme: {
                 extend: {
                     colors: {
-                        ios: { bg: '#090d16', glass: 'rgba(30, 41, 59, 0.45)', border: 'rgba(255, 255, 255, 0.12)', blue: '#38bdf8' }
+                        ios: { bg: '#151a17', glass: 'rgba(31, 39, 33, 0.72)', border: 'rgba(218, 225, 207, 0.12)', blue: '#8fa386' }
                     },
                     fontFamily: { sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'] }
                 }
@@ -122,13 +135,16 @@
     <!-- MOBILE TOP BAR -->
     <header class="md:hidden sticky top-0 z-40 liquid-glass px-4 py-3 flex items-center justify-between border-b border-white/10">
         <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-bold text-sm text-white">⚡</div>
+            <img src="nexa-mark.svg" alt="" class="brand-mark brand-mark-mobile">
             <span class="font-bold text-base text-white tracking-tight">Nexa</span>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="toggleMobileDrawer()" class="p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10 text-xs flex items-center gap-1.5 font-semibold">
                 <i class="fa-solid fa-bars text-sm"></i>
                 <span>Menu</span>
+            </button>
+            <button id="themeToggleMobile" onclick="toggleTheme()" class="theme-toggle-icon theme-toggle-compact" aria-label="Ganti tema" title="Ganti tema">
+                <i class="fa-solid fa-sun" data-theme-icon></i><span data-theme-label>Mode gelap</span>
             </button>
             <button onclick="handleMobileAvatarClick()" class="w-8 h-8 rounded-xl bg-slate-800 border border-white/20 flex items-center justify-center overflow-hidden">
                 <img id="mobileUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=guest" class="w-full h-full object-cover">
@@ -141,7 +157,7 @@
         <div>
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center font-extrabold text-xl text-white shadow-lg">⚡</div>
+                    <img src="nexa-mark.svg" alt="Logo Nexa" class="brand-mark brand-mark-sidebar">
                     <div>
                         <h1 class="font-bold text-xl text-white">Nexa</h1>
                         <p class="text-[10px] text-sky-400 font-semibold uppercase tracking-wider">Academic Hub</p>
@@ -205,6 +221,12 @@
         </div>
 
         <div class="pt-3 border-t border-white/10 space-y-2 mt-2">
+            <button onclick="startQuickGuide()" class="theme-toggle-row"><span class="flex items-center gap-2"><i class="fa-regular fa-circle-question"></i><span>Panduan Nexa</span></span><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+            <button id="installAppButtonSidebar" onclick="installNexaApp()" class="theme-toggle-row hidden"><span class="flex items-center gap-2"><i class="fa-solid fa-arrow-down-to-bracket"></i><span>Pasang Nexa</span></span><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+            <button id="themeToggleSidebar" onclick="toggleTheme()" class="theme-toggle-row" aria-label="Aktifkan mode gelap" aria-pressed="false">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-circle-half-stroke" data-theme-icon></i><span data-theme-label>Tema</span></span>
+                <span class="theme-switch-track" aria-hidden="true"><span class="theme-switch-thumb"></span></span>
+            </button>
             <button onclick="requestNotificationPermission()" class="w-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] py-1.5 rounded-xl font-semibold flex items-center justify-center gap-1">
                 <i class="fa-solid fa-bell"></i> Aktifkan Notifikasi
             </button>
@@ -215,6 +237,10 @@
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10">
+        <div class="desktop-quick-controls" aria-label="Kontrol tampilan">
+            <button id="themeToggleDesktop" onclick="toggleTheme()" class="quick-control theme-quick-control" aria-label="Aktifkan mode gelap" aria-pressed="false" title="Ganti mode warna"><i class="fa-solid fa-sun" data-theme-icon></i><span data-theme-label>Mode gelap</span></button>
+            <button id="installAppButton" onclick="installNexaApp()" class="quick-control install-quick-control hidden"><i class="fa-solid fa-arrow-down-to-bracket"></i><span>Pasang Nexa</span></button>
+        </div>
 
         <!-- DASHBOARD -->
         <section id="tab-dashboard" class="tab-page space-y-6">
@@ -227,6 +253,13 @@
                     <span id="dashboardDateDisplay" class="text-xs font-medium text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-xl"></span>
                 </div>
             </div>
+
+            <aside id="guidePrompt" class="guide-prompt hidden" aria-label="Panduan Nexa">
+                <span class="guide-prompt-icon"><i class="fa-solid fa-compass"></i></span>
+                <div class="guide-prompt-copy"><strong>Baru di Nexa?</strong><span>Ikuti tur singkat untuk mengenal fitur belajarmu.</span></div>
+                <button onclick="startQuickGuide()" class="guide-start-button">Arahkan aku <i class="fa-solid fa-arrow-right"></i></button>
+                <button onclick="dismissGuideOffer()" class="guide-later-button" aria-label="Tutup tawaran panduan">Nanti</button>
+            </aside>
 
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div class="liquid-glass p-4 rounded-2xl flex flex-col justify-between">
@@ -261,6 +294,32 @@
                         <i class="fa-solid fa-stopwatch"></i> Buka Focus Station
                     </button>
                 </div>
+            </div>
+
+            <section class="home-tools liquid-glass">
+                <div class="home-section-heading"><div><h3>Ruang Belajar</h3><p>Akses cepat ke semua fitur Nexa.</p></div><span class="home-section-icon"><i class="fa-solid fa-sparkles"></i></span></div>
+                <div class="home-feature-grid">
+                    <button class="home-feature" onclick="switchTab('tasks')"><span class="feature-icon sage"><i class="fa-solid fa-list-check"></i></span><span><strong>Daftar Tugas</strong><small>Atur prioritas & deadline</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('courses')"><span class="feature-icon sand"><i class="fa-solid fa-book-open"></i></span><span><strong>Jadwal Kuliah</strong><small>Kelola kelas mingguan</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('pomodoro')"><span class="feature-icon rose"><i class="fa-solid fa-stopwatch"></i></span><span><strong>Focus Station</strong><small>Mulai sesi fokus</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('habits')"><span class="feature-icon green"><i class="fa-solid fa-seedling"></i></span><span><strong>Kebiasaan</strong><small>Jaga rutinitas harian</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('flashcards')"><span class="feature-icon lilac"><i class="fa-solid fa-layer-group"></i></span><span><strong>Flashcard</strong><small>Ulang materi terjadwal</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('budget')"><span class="feature-icon peach"><i class="fa-solid fa-wallet"></i></span><span><strong>Keuangan</strong><small>Pantau pengeluaran harian</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                    <button class="home-feature" onclick="switchTab('analytics')"><span class="feature-icon blue"><i class="fa-solid fa-chart-simple"></i></span><span><strong>Analitik</strong><small>Lihat progres belajarmu</small></span><i class="fa-solid fa-chevron-right feature-arrow"></i></button>
+                </div>
+            </section>
+
+            <div class="home-agenda-grid">
+                <section class="calendar-panel liquid-glass">
+                    <div class="home-section-heading"><div><h3>Kalender Akademik</h3><p>Pilih tanggal untuk melihat agenda.</p></div><div class="calendar-nav"><button aria-label="Bulan sebelumnya" onclick="shiftCalendarMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button><strong id="calendarMonthLabel"></strong><button aria-label="Bulan berikutnya" onclick="shiftCalendarMonth(1)"><i class="fa-solid fa-chevron-right"></i></button></div></div>
+                    <div class="calendar-weekdays"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
+                    <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Kalender bulanan"></div>
+                    <div class="calendar-legend"><span><i class="schedule-dot"></i> Jadwal kelas</span><span><i class="task-dot"></i> Deadline tugas</span></div>
+                </section>
+                <section class="agenda-panel liquid-glass">
+                    <div class="home-section-heading"><div><h3 id="agendaDateTitle">Agenda Hari Ini</h3><p id="agendaCountLabel">Kelas dan tugas pada tanggal terpilih.</p></div><button class="text-button" onclick="switchTab('courses')">Atur jadwal <i class="fa-solid fa-arrow-right"></i></button></div>
+                    <div id="selectedDayAgenda" class="selected-agenda"></div>
+                </section>
             </div>
         </section>
 
@@ -340,7 +399,7 @@
                     
                     <div class="w-full max-w-sm mb-4">
                         <label class="block text-[10px] text-slate-400 mb-1 text-left font-semibold">🎯 Target Fokus Tugas:</label>
-                        <select id="pomoTaskSelect" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400">
+                        <select id="pomoTaskSelect" onchange="updatePomoTaskFocus()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:border-sky-400">
                             <option value="">-- Fokus Umum (Tanpa Spesifik Tugas) --</option>
                         </select>
                     </div>
@@ -354,7 +413,7 @@
                     <div class="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center my-2">
                         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 240 240">
                             <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="transparent" />
-                            <circle id="pomoProgressRing" cx="120" cy="120" r="100" stroke="#38bdf8" stroke-width="10" class="transition-all duration-1000" fill="transparent" stroke-dasharray="628" stroke-dashoffset="0" stroke-linecap="round" />
+                            <circle id="pomoProgressRing" cx="120" cy="120" r="100" stroke="var(--accent)" stroke-width="10" class="transition-all duration-1000" fill="transparent" stroke-dasharray="628" stroke-dashoffset="0" stroke-linecap="round" />
                         </svg>
                         <div class="absolute flex flex-col items-center">
                             <span id="pomoTimeDisplay" class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white font-mono">25:00</span>
@@ -368,6 +427,7 @@
                     </div>
                 </div>
 
+                <div class="lg:col-span-1 space-y-6">
                 <div class="liquid-glass p-5 rounded-3xl space-y-4">
                     <h3 class="font-bold text-xs text-slate-100 flex items-center gap-2"><i class="fa-solid fa-sliders text-sky-400"></i> Suara Latar</h3>
                     <div class="space-y-3">
@@ -380,6 +440,22 @@
                             <button onclick="toggleAmbientSound('binaural')" id="btn-sound-binaural" class="text-[10px] font-bold px-3 py-1 rounded-lg bg-white/10 text-slate-300">Aktifkan</button>
                         </div>
                     </div>
+                    <div class="alarm-preferences">
+                        <label><input id="pomoAlarmEnabled" type="checkbox" checked onchange="setPomoAlarmEnabled(this.checked)"><span>Alarm saat timer selesai</span></label>
+                        <button type="button" onclick="playPomoAlarm(true)" class="alarm-test-button"><i class="fa-solid fa-volume-high"></i> Tes</button>
+                    </div>
+                </div>
+                <div class="liquid-glass p-5 rounded-3xl space-y-3 spotify-panel">
+                    <h3 class="font-bold text-xs text-slate-100 flex items-center gap-2"><i class="fa-brands fa-spotify spotify-brand-icon"></i> Spotify untuk Fokus</h3>
+                    <p class="text-[11px] text-slate-400">Tempel tautan playlist atau album dari Spotify untuk memutarnya di sini.</p>
+                    <form class="spotify-link-form" onsubmit="event.preventDefault(); loadSpotifyEmbed();">
+                        <input id="spotifyLinkInput" class="in" type="url" inputmode="url" placeholder="https://open.spotify.com/playlist/..." aria-label="Tautan playlist Spotify">
+                        <button type="submit" class="btn pri"><i class="fa-solid fa-arrow-right"></i><span>Tampilkan</span></button>
+                    </form>
+                    <div id="spotifyEmbedWrap" class="spotify-embed-wrap hidden"><iframe id="spotifyEmbed" title="Pemutar Spotify untuk fokus" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+                    <div id="spotifyEmptyState" class="spotify-empty-state"><i class="fa-brands fa-spotify"></i><span>Player Spotify akan tampil setelah kamu menambahkan tautan.</span></div>
+                    <p class="spotify-note">Pemutaran memakai Spotify Embed resmi. Konten dan ketersediaan pemutaran mengikuti Spotify dan browser yang kamu gunakan.</p>
+                </div>
                 </div>
             </div>
         </section>
@@ -402,13 +478,20 @@
                 <div>
                     <h2 class="text-xl font-bold text-white">Smart Flashcards</h2>
                     <p class="text-xs text-slate-400">Latihan memori berbasis tingkat kesulitan.</p>
+                    <p id="flashcardProgressMeta" class="text-[11px] text-slate-400 mt-2"></p>
                 </div>
                 <button onclick="openFlashcardModal()" class="bg-sky-500 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs">+ Kartu Baru</button>
             </div>
 
             <div class="max-w-md mx-auto space-y-5">
+                <div class="flashcard-toolbar">
+                    <label class="flashcard-filter"><span>Deck</span><select id="flashcardDeckFilter" onchange="onFlashcardFilterChange()"><option value="ALL">Semua deck</option></select></label>
+                    <label class="flashcard-filter"><span>Mode</span><select id="flashcardReviewMode" onchange="onFlashcardFilterChange()"><option value="due">Perlu diulang</option><option value="all">Semua kartu</option></select></label>
+                    <button type="button" onclick="shuffleFlashcards()" class="flashcard-tool-button" title="Acak kartu" aria-label="Acak kartu"><i class="fa-solid fa-shuffle"></i></button>
+                </div>
+                <div class="flashcard-session-overview"><div><strong id="flashcardSessionTitle">Sesi belajar</strong><span id="flashcardSessionMeta">Pilih deck dan mulai mengingat.</span></div><div class="flashcard-progress-track"><span id="flashcardProgressBar"></span></div></div>
                 <div id="flashcardDeckArea" class="perspective-1000">
-                    <div id="flashcardCard" onclick="flipCard()" class="transform-style-3d liquid-glass rounded-3xl p-6 min-h-[240px] flex flex-col justify-between cursor-pointer relative shadow-xl border border-white/20">
+                    <div id="flashcardCard" onclick="flipCard()" onkeydown="handleFlashcardKey(event)" role="button" tabindex="0" aria-label="Kartu belajar. Tekan Enter atau Spasi untuk membalik." class="transform-style-3d liquid-glass rounded-3xl p-6 min-h-[240px] flex flex-col justify-between cursor-pointer relative shadow-xl border border-white/20">
                         <div id="cardFront" class="backface-hidden flex flex-col items-center justify-center text-center my-auto space-y-2">
                             <span id="cardDeckTag" class="text-[9px] uppercase tracking-widest font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">Materi</span>
                             <p id="cardQuestionText" class="text-sm font-semibold text-slate-100">Tekan '+ Kartu Baru' untuk membuat materi baru.</p>
@@ -420,39 +503,87 @@
                     </div>
                 </div>
 
+                <div class="flashcard-navigation">
+                    <button id="flashcardPrevButton" type="button" onclick="changeFlashcard(-1)" class="flashcard-tool-button"><i class="fa-solid fa-arrow-left"></i><span>Sebelumnya</span></button>
+                    <span id="flashcardPosition">0 / 0</span>
+                    <button id="flashcardNextButton" type="button" onclick="changeFlashcard(1)" class="flashcard-tool-button"><span>Berikutnya</span><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+                <div id="flashcardManageActions" class="flashcard-manage-actions hidden">
+                    <button type="button" onclick="editCurrentFlashcard()" class="flashcard-tool-button"><i class="fa-solid fa-pen"></i> Edit kartu</button>
+                    <button type="button" onclick="deleteCurrentFlashcard()" class="flashcard-tool-button danger"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+                </div>
                 <div id="flashcardReviewControls" class="grid grid-cols-3 gap-2 hidden">
-                    <button onclick="rateFlashcard('HARD')" class="bg-red-500/20 border border-red-500/30 text-red-300 py-2 rounded-xl text-xs font-bold">😣 Sulit</button>
-                    <button onclick="rateFlashcard('MEDIUM')" class="bg-amber-500/20 border border-amber-500/30 text-amber-300 py-2 rounded-xl text-xs font-bold">😐 Sedang</button>
-                    <button onclick="rateFlashcard('EASY')" class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 py-2 rounded-xl text-xs font-bold">😎 Mudah</button>
+                    <button onclick="rateFlashcard('HARD')" class="flashcard-rate hard"><span>😣</span><strong>Sulit</strong><small>Ulangi besok</small></button>
+                    <button onclick="rateFlashcard('MEDIUM')" class="flashcard-rate medium"><span>😐</span><strong>Ragu</strong><small>Ulangi 3 hari</small></button>
+                    <button onclick="rateFlashcard('EASY')" class="flashcard-rate easy"><span>😎</span><strong>Ingat</strong><small>Ulangi 7 hari</small></button>
                 </div>
             </div>
         </section>
 
         <!-- DAILY SAFE-SPEND -->
         <section id="tab-budget" class="tab-page hidden space-y-5">
-            <h2 class="text-xl font-bold text-white">Daily Safe-Spend & Expense Tracker</h2>
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div>
+                    <p class="section-kicker">KEUANGAN HARIAN</p>
+                    <h2 class="text-xl font-bold text-white">Daily Safe-Spend</h2>
+                    <p class="text-xs text-slate-400 mt-1">Catat pengeluaran dan lihat ringkasan harianmu.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="exportExpensesCsv()" class="export-button"><i class="fa-solid fa-file-csv"></i> Ekspor Excel / CSV</button>
+                    <button onclick="printExpenseReport()" class="export-button"><i class="fa-solid fa-file-pdf"></i> Cetak / PDF</button>
+                </div>
+            </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div class="liquid-glass p-5 rounded-3xl space-y-3">
-                    <h3 class="font-bold text-xs text-slate-200">Hitung Limit Harian</h3>
-                    <div><label class="block text-[11px] text-slate-300 mb-1">Sisa Saldo (Rp)</label><input type="number" id="bgBalance" value="1500000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
-                    <div><label class="block text-[11px] text-slate-300 mb-1">Hari Tersisa</label><input type="number" id="bgDays" value="20" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
-                    <div><label class="block text-[11px] text-slate-300 mb-1">Target Tabungan (Rp)</label><input type="number" id="bgSavings" value="200000" oninput="calculateBudget()" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <h3 class="font-bold text-xs text-slate-200">Rencana budget</h3>
+                    <div><label class="block text-[11px] text-slate-300 mb-1" for="bgBalance">Saldo tersedia (Rp)</label><input type="number" min="0" id="bgBalance" value="1500000" oninput="calculateBudget(true)" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <div><label class="block text-[11px] text-slate-300 mb-1" for="bgDays">Hari sampai periode berikutnya</label><input type="number" min="1" id="bgDays" value="20" oninput="calculateBudget(true)" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <div><label class="block text-[11px] text-slate-300 mb-1" for="bgSavings">Target tabungan (Rp)</label><input type="number" min="0" id="bgSavings" value="200000" oninput="calculateBudget(true)" class="w-full bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white"></div>
+                    <p class="text-[10px] text-slate-400">Rencana budget tersimpan otomatis di akun/perangkat ini.</p>
                 </div>
 
                 <div class="lg:col-span-2 space-y-4">
-                    <div class="liquid-glass p-5 rounded-3xl text-center">
-                        <span class="text-[10px] uppercase text-slate-400 font-semibold">Sisa Batas Aman Hari Ini</span>
-                        <h3 id="bgSafeSpendDisplay" class="text-3xl font-extrabold text-sky-400 mt-1">Rp 0 / hari</h3>
+                    <div class="liquid-glass p-5 rounded-3xl budget-hero">
+                        <div>
+                            <span class="text-[10px] uppercase text-slate-400 font-semibold">Batas aman tersisa hari ini</span>
+                            <h3 id="bgSafeSpendDisplay" class="text-3xl font-extrabold text-sky-400 mt-1">Rp 0</h3>
+                        </div>
+                        <div class="budget-hero-side"><span>Sudah dipakai hari ini</span><strong id="todaySpentDisplay">Rp 0</strong></div>
+                        <p id="safeToSpendStatus" class="safe-to-spend-status">Alokasi hari ini siap dihitung.</p>
                     </div>
 
                     <div class="liquid-glass p-4 rounded-3xl space-y-3">
-                        <h4 class="text-xs font-bold text-white">+ Catat Pengeluaran Hari Ini</h4>
-                        <div class="flex gap-2">
-                            <input type="text" id="expenseName" placeholder="Contoh: Makan Siang" class="flex-1 bg-slate-900/80 border border-white/10 rounded-xl p-2 text-xs text-white">
-                            <input type="number" id="expenseAmount" placeholder="Rp Nominal" class="w-32 bg-slate-900/80 border border-white/10 rounded-xl p-2 text-xs text-white">
-                            <button onclick="addExpense()" class="bg-sky-500 text-slate-950 font-bold px-3 rounded-xl text-xs">Tambah</button>
+                        <h4 class="text-xs font-bold text-white">Catat pengeluaran</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2">
+                            <input type="text" id="expenseName" aria-label="Nama pengeluaran" placeholder="Contoh: Makan siang" class="bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white">
+                            <input type="number" id="expenseAmount" min="1" step="1" aria-label="Nominal pengeluaran" placeholder="Nominal (Rp)" class="bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white">
+                            <select id="expenseCategory" aria-label="Kategori pengeluaran" class="bg-slate-900/80 border border-white/10 rounded-xl p-2.5 text-xs text-white">
+                                <option value="Makan">Makan & minum</option><option value="Transportasi">Transportasi</option><option value="Akademik">Akademik</option><option value="Kebutuhan">Kebutuhan</option><option value="Lainnya">Lainnya</option>
+                            </select>
+                            <input type="date" id="expenseEntryDate" aria-label="Tanggal pengeluaran" class="date-filter w-full">
+                            <button onclick="addExpense()" class="bg-sky-500 text-slate-950 font-bold px-3 rounded-xl text-xs"><i class="fa-solid fa-plus mr-1"></i>Tambah</button>
                         </div>
-                        <div id="expenseList" class="space-y-1.5 pt-2 max-h-40 overflow-y-auto text-xs"></div>
+                    </div>
+
+                    <div class="liquid-glass p-4 sm:p-5 rounded-3xl space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div><h4 class="text-sm font-bold text-white">Ringkasan per hari</h4><p class="text-[11px] text-slate-400 mt-1">Pilih tanggal untuk melihat total dan rincian belanja.</p></div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="shiftExpenseDate(-1)" class="day-nav-button" aria-label="Hari sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>
+                                <input type="date" id="expenseDateFilter" onchange="setExpenseDate(this.value)" class="date-filter">
+                                <button onclick="shiftExpenseDate(1)" class="day-nav-button" aria-label="Hari berikutnya"><i class="fa-solid fa-chevron-right"></i></button>
+                                <button onclick="setExpenseDateToToday()" class="today-button">Hari ini</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="daily-total-card"><span>Total pengeluaran</span><strong id="selectedDayTotal">Rp 0</strong></div>
+                            <div class="daily-total-card"><span>Jumlah transaksi</span><strong id="selectedDayCount">0</strong></div>
+                        </div>
+                        <div id="expenseList" class="expense-list space-y-2 text-xs"></div>
+                        <div class="pt-2 border-t border-white/10">
+                            <div class="flex items-center justify-between gap-2 mb-3"><h5 class="text-xs font-bold text-white">7 hari terakhir</h5><span class="text-[10px] text-slate-400">Pilih hari untuk melihat detail</span></div>
+                            <div id="expenseWeekSummary" class="expense-week-summary"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -476,7 +607,7 @@
     </main>
 
     <!-- FLOATING BOTTOM NAV BAR (Dengan Efek Transisi) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 liquid-glass border-t border-white/15 px-2 py-3 flex items-center justify-around text-[10px] font-semibold pb-safe">
+    <nav id="bottomTabBar" class="md:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 liquid-glass px-2 py-2 flex items-center justify-around text-[10px] font-semibold">
         <button onclick="switchTab('dashboard')" id="bnav-dashboard" class="bnav-item flex flex-col items-center gap-1 text-sky-400 transition-all duration-300 transform scale-110">
             <i class="fa-solid fa-house text-lg mb-0.5"></i><span>Home</span>
         </button>
@@ -566,6 +697,6 @@
     <div id="sheetBg" class="sheet-backdrop" aria-hidden="true" onclick="closeSheet(event)">
         <div id="sheetContent" class="sheet" onclick="event.stopPropagation()"></div>
     </div>
-    <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
