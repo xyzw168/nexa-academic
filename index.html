@@ -44,6 +44,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
+        Object.assign(window, { auth, db, doc, setDoc });
 
         let unsubscribeFirestore = null;
 
@@ -75,20 +76,12 @@
             await signOut(auth); location.reload();
         };
 
-        window.saveData = async () => {
-            if (auth.currentUser) {
-                try { await setDoc(doc(db, "users", auth.currentUser.uid), window.state, { merge: true }); } 
-                catch(e) { console.error("Cloud sync error", e); }
-            } else {
-                localStorage.setItem('nexa_guest_data', JSON.stringify(window.state));
-            }
-        };
-
         onAuthStateChanged(auth, (user) => {
             const guestBanner = document.getElementById('guestBanner');
             const userProfileCard = document.getElementById('userProfileCard');
             const mobileUserAvatar = document.getElementById('mobileUserAvatar');
             
+            if (unsubscribeFirestore) { unsubscribeFirestore(); unsubscribeFirestore = null; }
             if (user) {
                 if(guestBanner) guestBanner.classList.add('hidden');
                 if(userProfileCard) {
@@ -99,10 +92,13 @@
                 }
                 if(mobileUserAvatar) mobileUserAvatar.src = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`;
 
-                unsubscribeFirestore = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+                unsubscribeFirestore = onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
                     if (docSnap.exists()) {
                         window.state = { ...window.state, ...docSnap.data() };
                         if (typeof window.renderAll === 'function') window.renderAll();
+                    } else {
+                        try { await setDoc(doc(db, "users", user.uid), window.state, { merge: true }); }
+                        catch (err) { console.error("Gagal membuat data pengguna", err); }
                     }
                 });
             } else {
@@ -565,71 +561,11 @@
         </div>
     </div>
 
-    <!-- MODAL TASK -->
-    <div id="modalTask" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-3">
-            <h3 id="modalTaskTitleHeader" class="text-base font-bold text-white">Tambah Tugas Baru</h3>
-            <input type="hidden" id="editTaskId">
-            
-            <input type="text" id="inputTaskTitle" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Judul Tugas...">
-            
-            <select id="inputTaskCourseSelect" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
-                <option value="Umum">Mata Kuliah / Pelajaran...</option>
-            </select>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-[10px] text-slate-400 mb-1">Tanggal Deadline</label>
-                    <input type="date" id="inputTaskDueDate" class="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-slate-400 mb-1">Jam Deadline</label>
-                    <input type="time" id="inputTaskDueTime" class="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none">
-                </div>
-            </div>
-
-            <select id="inputTaskPriority" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
-                <option value="HIGH">Prioritas Tinggi</option>
-                <option value="MEDIUM" selected>Prioritas Sedang</option>
-                <option value="LOW">Prioritas Rendah</option>
-            </select>
-            
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="closeTaskModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button>
-                <button onclick="saveTaskModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button>
-            </div>
-        </div>
+    <!-- SHARED SHEET MODAL -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="sheetBg" class="sheet-backdrop" aria-hidden="true" onclick="closeSheet(event)">
+        <div id="sheetContent" class="sheet" onclick="event.stopPropagation()"></div>
     </div>
-
-    <!-- MODAL COURSE -->
-    <div id="modalCourse" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
-            <h3 class="text-base font-bold text-white">Tambah Mata Kuliah</h3>
-            <input type="text" id="inputCourseName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Mata Kuliah...">
-            <div class="flex justify-end gap-3"><button onclick="closeCourseModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveCourseModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
-        </div>
-    </div>
-
-    <!-- MODAL HABIT -->
-    <div id="modalHabit" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
-            <h3 class="text-base font-bold text-white">Kebiasaan Baru</h3>
-            <input type="text" id="inputHabitName" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Nama Kebiasaan...">
-            <div class="flex justify-end gap-3"><button onclick="closeHabitModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveHabitModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
-        </div>
-    </div>
-
-    <!-- MODAL FLASHCARD -->
-    <div id="modalFlashcard" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
-        <div class="liquid-glass bg-slate-900 p-6 rounded-3xl max-w-md w-full space-y-4">
-            <h3 class="text-base font-bold text-white">Flashcard Baru</h3>
-            <input type="text" id="inputFlashDeck" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white outline-none" placeholder="Kategori/Materi...">
-            <textarea id="inputFlashQuestion" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16 outline-none" placeholder="Pertanyaan..."></textarea>
-            <textarea id="inputFlashAnswer" class="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white h-16 outline-none" placeholder="Jawaban..."></textarea>
-            <div class="flex justify-end gap-3"><button onclick="closeFlashcardModal()" class="px-4 py-2 text-xs text-slate-400">Batal</button><button onclick="saveFlashcardModal()" class="px-5 py-2 text-xs bg-sky-500 text-slate-950 font-bold rounded-xl">Simpan</button></div>
-        </div>
-    </div>
-    
     <script src="script.js"></script>
 </body>
 </html>
