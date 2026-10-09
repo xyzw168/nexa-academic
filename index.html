@@ -376,7 +376,7 @@
                     </div>
 
                     <div class="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center my-2">
-                        <svg class="w-full h-full transform -rotate-90">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 240 240">
                             <circle cx="120" cy="120" r="100" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="transparent" />
                             <circle id="pomoProgressRing" cx="120" cy="120" r="100" stroke="#38bdf8" stroke-width="10" class="transition-all duration-1000" fill="transparent" stroke-dasharray="628" stroke-dashoffset="0" stroke-linecap="round" />
                         </svg>
@@ -520,7 +520,7 @@
     </nav>
 
     <!-- AUTH MODAL -->
-    <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+    <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-[60] p-4">
         <div class="liquid-glass bg-slate-900/90 border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
             <div class="text-center">
                 <h3 id="authTitle" class="text-lg font-bold text-white">Masuk ke Nexa</h3>
@@ -685,6 +685,22 @@
             }
         }
 
+        // Tweak tombol login supaya z-index aman & menutup sidebar di HP
+        function openAuthModal() { 
+            const drawer = document.getElementById('sidebarDrawer');
+            if (drawer && !drawer.classList.contains('-translate-x-full')) {
+                toggleMobileDrawer();
+            }
+            const modal = document.getElementById('modalAuth');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        function closeAuthModal() { 
+            const modal = document.getElementById('modalAuth');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
             const target = document.getElementById(`tab-${tabId}`);
@@ -744,7 +760,6 @@
             dropdown.classList.remove('hidden');
         }
 
-        /* DASHBOARD DENGAN URUTAN DEADLINE TANGGAL + JAM */
         function renderDashboard() {
             const tasks = window.state.tasks || [];
             const habits = window.state.habits || [];
@@ -795,7 +810,6 @@
             }
         }
 
-        /* COURSES */
         function renderCourses() {
             const container = document.getElementById('coursesContainer');
             if(!container) return;
@@ -825,6 +839,7 @@
                 });
             });
         }
+        
         function openCourseModal() { document.getElementById('modalCourse').classList.remove('hidden'); document.getElementById('modalCourse').classList.add('flex'); }
         function closeCourseModal() { document.getElementById('modalCourse').classList.add('hidden'); document.getElementById('modalCourse').classList.remove('flex'); }
         function saveCourseModal() {
@@ -839,7 +854,6 @@
             if(window.saveData) window.saveData(); renderCourses();
         }
 
-        /* TASK MATRIX COUNTDOWN REALTIME JAM & MENIT */
         function renderTasks() {
             const colTodo = document.getElementById('col-todo'), colInProgress = document.getElementById('col-inprogress'), colDone = document.getElementById('col-done');
             if(!colTodo) return;
@@ -1037,7 +1051,6 @@
             const priority = document.getElementById('inputTaskPriority').value;
 
             if(!title) return;
-
             if(!window.state.tasks) window.state.tasks = [];
 
             if(editId) {
@@ -1060,7 +1073,6 @@
             if(window.saveData) window.saveData(); renderTasks(); renderDashboard();
         }
 
-        /* POMODORO */
         let pomoState = { mode: 'work', timeTotal: 25 * 60, timeLeft: 25 * 60, timerId: null, isRunning: false };
         
         function populatePomoTaskSelect() {
@@ -1077,6 +1089,7 @@
             pomoState.timeLeft = pomoState.timeTotal; pausePomoTimer(); updatePomoDisplay();
         }
         function togglePomoTimer() { if(pomoState.isRunning) pausePomoTimer(); else startPomoTimer(); }
+        
         function startPomoTimer() {
             pomoState.isRunning = true;
             pomoState.timerId = setInterval(() => {
@@ -1135,7 +1148,6 @@
             }
         }
 
-        /* HABIT TRACKER REAL STREAK */
         function renderHabits() {
             const container = document.getElementById('habitsContainer');
             if (!container) return;
@@ -1152,7 +1164,6 @@
 
                 while (true) {
                     const dateStr = checkDate.toISOString().split('T')[0];
-
                     if (completedDates.includes(dateStr)) {
                         streak++;
                         checkDate.setDate(checkDate.getDate() - 1);
@@ -1200,7 +1211,6 @@
             if (!habit) return;
 
             const todayStr = new Date().toISOString().split('T')[0];
-
             if (!habit.completedDates) {
                 habit.completedDates = [];
             }
@@ -1219,7 +1229,6 @@
 
             while (true) {
                 const dateStr = checkDate.toISOString().split('T')[0];
-
                 if (habit.completedDates.includes(dateStr)) {
                     streak++;
                     checkDate.setDate(checkDate.getDate() - 1);
@@ -1229,7 +1238,6 @@
             }
 
             habit.streak = streak;
-
             if (window.saveData) window.saveData();
 
             renderHabits();
@@ -1242,10 +1250,7 @@
         function saveHabitModal() {
             const name = document.getElementById('inputHabitName').value.trim();
             if (!name) return;
-
-            if (!window.state.habits) {
-                window.state.habits = [];
-            }
+            if (!window.state.habits) window.state.habits = [];
 
             window.state.habits.push({
                 id: Date.now().toString(),
@@ -1256,7 +1261,6 @@
             });
 
             if (window.saveData) window.saveData();
-
             renderHabits();
             renderDashboard();
             closeHabitModal();
@@ -1267,7 +1271,6 @@
             if(window.saveData) window.saveData(); renderHabits(); renderDashboard();
         }
 
-        /* SMART FLASHCARDS REVIEW DATA SAVING */
         let currentFlashcardIdx = 0, isCardFlipped = false;
 
         function renderFlashcards() {
@@ -1295,35 +1298,21 @@
             if (cards.length === 0) return;
 
             const card = cards[currentFlashcardIdx % cards.length];
-
             card.lastReviewed = new Date().toISOString();
             card.lastDifficulty = difficulty;
 
-            if (!card.reviewCount) {
-                card.reviewCount = 0;
-            }
-
+            if (!card.reviewCount) card.reviewCount = 0;
             card.reviewCount++;
 
-            if (difficulty === 'HARD') {
-                card.nextReviewDays = 1;
-            } else if (difficulty === 'MEDIUM') {
-                card.nextReviewDays = 3;
-            } else if (difficulty === 'EASY') {
-                card.nextReviewDays = 7;
-            }
+            if (difficulty === 'HARD') card.nextReviewDays = 1;
+            else if (difficulty === 'MEDIUM') card.nextReviewDays = 3;
+            else if (difficulty === 'EASY') card.nextReviewDays = 7;
 
-            if (window.saveData) {
-                window.saveData();
-            }
+            if (window.saveData) window.saveData();
 
             isCardFlipped = false;
-
             const cardEl = document.getElementById('flashcardCard');
-            if (cardEl) {
-                cardEl.classList.remove('rotate-y-180');
-            }
-
+            if (cardEl) cardEl.classList.remove('rotate-y-180');
             document.getElementById('flashcardReviewControls').classList.add('hidden');
 
             currentFlashcardIdx++;
@@ -1341,7 +1330,6 @@
             if(window.saveData) window.saveData(); renderFlashcards(); closeFlashcardModal();
         }
 
-        /* DAILY SAFE-SPEND FILTERED BY TODAY EXPENSES & INFORMATIVE EXPENSE LIST */
         function calculateBudget() {
             const balance = parseFloat(document.getElementById('bgBalance').value) || 0;
             const days = parseFloat(document.getElementById('bgDays').value) || 1;
@@ -1356,7 +1344,6 @@
             const dailyLimit = Math.floor(netBalance / days);
 
             document.getElementById('bgSafeSpendDisplay').innerText = `Rp ${dailyLimit.toLocaleString('id-ID')} / hari`;
-
             renderExpenses();
         }
 
@@ -1378,11 +1365,9 @@
         function renderExpenses() {
             const listEl = document.getElementById('expenseList');
             if (!listEl) return;
-
             listEl.innerHTML = '';
 
             const expenses = window.state.expenses || [];
-
             if (expenses.length === 0) {
                 listEl.innerHTML = `<div class="text-slate-500 italic text-xs">Belum ada pengeluaran.</div>`;
                 return;
@@ -1392,16 +1377,10 @@
                 .sort((a, b) => new Date(b.date) - new Date(a.date))
                 .forEach(e => {
                     const date = e.date
-                        ? new Date(e.date).toLocaleDateString('id-ID', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                        })
+                        ? new Date(e.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
                         : '-';
-
                     const item = document.createElement('div');
                     item.className = 'bg-slate-900/60 p-2 rounded-xl border border-white/10 flex justify-between items-center';
-
                     item.innerHTML = `
                         <div>
                             <div class="text-slate-300 font-medium">${e.name}</div>
@@ -1409,12 +1388,10 @@
                         </div>
                         <span class="text-red-400 font-bold">- Rp ${Number(e.amount || 0).toLocaleString('id-ID')}</span>
                     `;
-
                     listEl.appendChild(item);
                 });
         }
 
-        /* ANALYTICS */
         function updateAnalytics() {
             const completedTasks = (window.state.tasks || []).filter(t => t.status === 'done').length;
             document.getElementById('analyticsTasksCompleted').innerText = completedTasks;
@@ -1439,7 +1416,6 @@
             }
         }
 
-        /* EXPORT & IMPORT JSON */
         function exportData() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.state, null, 2));
             const downloadAnchor = document.createElement('a'); downloadAnchor.setAttribute("href", dataStr);
@@ -1463,7 +1439,6 @@
             fileReader.readAsText(event.target.files[0]);
         }
 
-        /* RENDER ALL TERMASUK EXPENSES & ANALYTICS */
         window.renderAll = function() {
             renderCourses();
             renderTasks();
