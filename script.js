@@ -17,6 +17,45 @@ const getTodayLocal = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+function addXp(points) {
+    window.state.xpPoints = Math.max(0, Number(window.state.xpPoints) || 0) + points;
+    updateAnalytics();
+}
+
+function toggleMobileDrawer(forceOpen) {
+    if (window.innerWidth >= 768) return;
+    const drawer = document.getElementById('sidebarDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer || !overlay) return;
+    const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : drawer.classList.contains('-translate-x-full');
+    drawer.classList.toggle('-translate-x-full', !shouldOpen);
+    overlay.classList.toggle('hidden', !shouldOpen);
+    document.body.classList.toggle('overflow-hidden', shouldOpen);
+}
+
+function handleMobileAvatarClick() {
+    if (window.auth?.currentUser) toggleMobileDrawer(true);
+    else openAuthModal();
+}
+
+function handleGlobalSearch(query) {
+    const dropdown = document.getElementById('searchResultsDropdown');
+    if (!dropdown) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; return; }
+    const results = [
+        ...(window.state.tasks || []).filter(item => item.title?.toLowerCase().includes(q)).map(item => ({ label: item.title, tab: 'tasks' })),
+        ...(window.state.courses || []).filter(item => item.name?.toLowerCase().includes(q)).map(item => ({ label: item.name, tab: 'courses' })),
+        ...(window.state.flashcards || []).filter(item => item.question?.toLowerCase().includes(q)).map(item => ({ label: item.question, tab: 'flashcards' }))
+    ].slice(0, 8);
+    dropdown.innerHTML = results.length
+        ? results.map(item => `<button type="button" class="block w-full text-left p-2 rounded-lg hover:bg-white/10" onclick="switchTab('${item.tab}'); document.getElementById('searchResultsDropdown').classList.add('hidden')">${escapeHTML(item.label)}</button>`).join('')
+        : '<div class="p-2 text-slate-400">Tidak ada hasil.</div>';
+    dropdown.classList.remove('hidden');
+}
+
 window.onload = function() { 
     if (typeof window.renderAll === 'function') window.renderAll(); 
     calculateBudget(); 
@@ -39,37 +78,82 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) return showToast('Browser ini tidak mendukung notifikasi.');
+    if (Notification.permission === 'granted') return showToast('Notifikasi sudah aktif.');
+    const permission = await Notification.requestPermission();
+    showToast(permission === 'granted' ? 'Notifikasi berhasil diaktifkan.' : 'Izin notifikasi belum diberikan.');
+}
+
 function openSheet(htmlContent) {
-    document.getElementById('sheetContent').innerHTML = htmlContent;
-    document.getElementById('sheetBg').classList.add('show');
-    // Aksesibilitas: Fokus ke modal
-    document.getElementById('sheetContent').setAttribute('role', 'dialog');
-    document.getElementById('sheetContent').setAttribute('aria-modal', 'true');
+    const backdrop = document.getElementById('sheetBg');
+    const content = document.getElementById('sheetContent');
+    if (!backdrop || !content) return;
+    content.innerHTML = htmlContent;
+    backdrop.classList.add('show');
+    backdrop.setAttribute('aria-hidden', 'false');
+    content.setAttribute('role', 'dialog');
+    content.setAttribute('aria-modal', 'true');
 }
 
 function closeSheet(e) {
-    if(!e || e.target.id === 'sheetBg') {
-        document.getElementById('sheetBg').classList.remove('show');
-    }
+    if (e && e.target && e.target.id !== 'sheetBg') return;
+    const backdrop = document.getElementById('sheetBg');
+    if (!backdrop) return;
+    backdrop.classList.remove('show');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.getElementById('sheetContent').innerHTML = '';
 }
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeSheet(); closeAuthModal(); }
+});
 
 // --- AUTH & CLOUD SYNC ---
 function openAuthModal() {
-    openSheet(`
-        <h2>Masuk ke Nexa</h2>
-        <p class="sub">Silakan login atau buat akun baru.</p>
-        <button onclick="fbGoogleLogin()" class="btn pri" style="width:100%; display:flex; justify-content:center; align-items:center; gap:8px; background:#fff; color:#000;">
-            <i class="fa-brands fa-google" style="color:#ea4335"></i> Lanjutkan dengan Google
-        </button>
-        <div style="text-align:center; color:var(--sub); font-size:12px;">atau Email</div>
-        <div><label>Email</label><input type="email" id="authEmail" class="in" style="margin-top:4px;"></div>
-        <div><label>Password</label><input type="password" id="authPassword" class="in" style="margin-top:4px;"></div>
-        <div class="row" style="gap:8px;">
-            <button onclick="handleEmailLogin()" class="btn pri" style="flex:1;">Login</button>
-            <button onclick="handleEmailRegister()" class="btn" style="flex:1;">Daftar</button>
-        </div>
-    `);
+    const modal = document.getElementById('modalAuth');
+    if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('modalAuth');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.setAttribute('aria-hidden', 'true'); }
+}
+
+let authMode = 'login';
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    const registering = authMode === 'register';
+    const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    const fields = document.getElementById('registerFields');
+    const school = document.getElementById('schoolFieldWrapper');
+    const submit = document.getElementById('authSubmitBtn');
+    const toggle = document.getElementById('authToggleBtn');
+    if (fields) fields.classList.toggle('hidden', !registering);
+    if (school) school.classList.toggle('hidden', !registering || document.getElementById('authEducation')?.value !== 'SMA');
+    if (submit) submit.textContent = registering ? 'Buat Akun' : 'Masuk';
+    if (toggle) toggle.textContent = registering ? 'Masuk sekarang' : 'Daftar sekarang';
+    setText('authTitle', registering ? 'Buat akun Nexa' : 'Masuk ke Nexa');
+    setText('authSubtitle', registering ? 'Isi data untuk membuat akun' : 'Silakan masuk dengan akun kamu');
+    setText('authToggleText', registering ? 'Sudah punya akun?' : 'Belum punya akun?');
+}
+
+function toggleSchoolField() {
+    const wrapper = document.getElementById('schoolFieldWrapper');
+    const education = document.getElementById('authEducation');
+    if (wrapper && education) wrapper.classList.toggle('hidden', education.value !== 'SMA');
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+    const email = document.getElementById('authEmail')?.value.trim();
+    const pass = document.getElementById('authPassword')?.value;
+    if (!email || !pass) return showToast('Email dan kata sandi harus diisi.');
+    if (authMode === 'login') return window.fbLogin?.(email, pass);
+    const name = document.getElementById('authName')?.value.trim();
+    const education = document.getElementById('authEducation')?.value || '';
+    const school = document.getElementById('authSchool')?.value.trim() || '';
+    if (!name) return showToast('Nama harus diisi.');
+    return window.fbRegister?.(email, pass, name, education, school);
 }
 
 function handleEmailLogin() {
@@ -104,13 +188,19 @@ function switchTab(tabId) {
     const target = document.getElementById(`tab-${tabId}`);
     if(target) target.classList.remove('hidden');
     
-    document.querySelectorAll('.nav').forEach(el => el.classList.remove('on'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('on'));
     const activeNav = document.getElementById(`nav-${tabId}`);
     if (activeNav) activeNav.classList.add('on');
 
-    document.querySelectorAll('#tabbar button').forEach(el => el.classList.remove('on'));
+    document.querySelectorAll('.bnav-item').forEach(el => {
+        el.classList.remove('on', 'text-sky-400', 'scale-110');
+        el.classList.add('text-slate-500');
+    });
     const activeBNav = document.getElementById(`bnav-${tabId}`);
-    if (activeBNav) activeBNav.classList.add('on');
+    if (activeBNav) {
+        activeBNav.classList.add('on', 'text-sky-400', 'scale-110');
+        activeBNav.classList.remove('text-slate-500');
+    }
 
     if(tabId === 'dashboard') renderDashboard();
     if(tabId === 'analytics') updateAnalytics();
@@ -233,7 +323,7 @@ function renderTasks() {
                 <span class="sub" style="font-weight:700; color:${task.priority === 'HIGH' ? 'var(--bad)' : 'var(--warn)'}">${task.priority}</span>
             </div>
             <div class="t" style="font-weight:700;">${escapeHTML(task.title)}</div>
-            <div class="sub">📅 ${escapeHTML(task.dueDate || 'Tanpa Deadline')}</div>
+            <div class="sub">📅 ${escapeHTML(task.dueDate || 'Tanpa Deadline')}${task.dueTime ? ` · ${escapeHTML(task.dueTime)}` : ''}</div>
             <div class="row" style="margin-top:4px;">
                 <select aria-label="Status tugas" onchange="updateTaskStatus('${task.id}', this.value)" class="in" style="padding:6px; font-size:12px;">
                     <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To-Do</option>
@@ -255,7 +345,7 @@ function renderTasks() {
 
 function setTaskFilter(type, val, btn) {
     window.state.currentTaskFilterPriority = val;
-    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on', 'active'));
     btn.classList.add('on');
     renderTasks();
 }
@@ -264,7 +354,8 @@ function updateTaskStatus(id, newStatus) {
     const task = (window.state.tasks || []).find(t => t.id === id);
     if(task) { 
         if(task.status !== 'done' && newStatus === 'done') {
-            window.state.xpPoints += 50; 
+            if (!task.xpAwarded) addXp(50);
+            task.xpAwarded = true;
             task.doneAt = getTodayLocal(); // Simpan tanggal selesai untuk statistik
         }
         task.status = newStatus; 
@@ -281,7 +372,7 @@ function openTaskModal() {
         <h2>Tambah Tugas Baru</h2>
         <div><label>Judul Tugas</label><input type="text" id="inputTaskTitle" class="in" style="margin-top:4px;"></div>
         <div><label>Mata Kuliah</label><select id="inputTaskCourseSelect" class="in" style="margin-top:4px;">${courseOptions}</select></div>
-        <div><label>Tanggal Deadline</label><input type="date" id="inputTaskDueDate" class="in" style="margin-top:4px;"></div>
+        <div class="grid grid-cols-2 gap-2"><div><label>Tanggal Deadline</label><input type="date" id="inputTaskDueDate" class="in" style="margin-top:4px;"></div><div><label>Jam Deadline</label><input type="time" id="inputTaskDueTime" class="in" style="margin-top:4px;"></div></div>
         <div><label>Prioritas</label>
             <select id="inputTaskPriority" class="in" style="margin-top:4px;">
                 <option value="HIGH">Tinggi</option>
@@ -297,11 +388,12 @@ function saveTaskModal() {
     const title = document.getElementById('inputTaskTitle').value;
     const course = document.getElementById('inputTaskCourseSelect').value;
     const dueDate = document.getElementById('inputTaskDueDate').value;
+    const dueTime = document.getElementById('inputTaskDueTime')?.value || '';
     const priority = document.getElementById('inputTaskPriority').value;
 
-    if(!title) return;
+    if(!title.trim()) return showToast('Judul tugas harus diisi.');
     if(!window.state.tasks) window.state.tasks = [];
-    window.state.tasks.push({ id: Date.now().toString(), title, course, dueDate, priority, status: 'todo' });
+    window.state.tasks.push({ id: Date.now().toString(), title: title.trim(), course, dueDate, dueTime, priority, status: 'todo' });
 
     if(window.saveData) window.saveData(); 
     renderTasks(); renderDashboard(); closeSheet();
@@ -330,8 +422,13 @@ function populatePomoTaskSelect() {
 function setPomoMode(mode) {
     pomoState.mode = mode; pomoState.timeTotal = mode === 'work' ? 25*60 : (mode === 'shortBreak' ? 5*60 : 15*60);
     pomoState.timeLeft = pomoState.timeTotal; pausePomoTimer(); updatePomoDisplay();
-    document.querySelectorAll('#tab-pomodoro .seg button').forEach(b => b.classList.remove('on'));
-    document.getElementById(`pomo-btn-${mode === 'work' ? 'work' : (mode === 'shortBreak' ? 'short' : 'long')}`).classList.add('on');
+    document.querySelectorAll('#tab-pomodoro [id^="pomo-mode-"]').forEach(b => {
+        b.classList.remove('bg-sky-500', 'text-slate-950'); b.classList.add('text-slate-400');
+    });
+    const modeButton = document.getElementById(`pomo-mode-${mode}`);
+    if (modeButton) { modeButton.classList.add('bg-sky-500', 'text-slate-950'); modeButton.classList.remove('text-slate-400'); }
+    const status = document.getElementById('pomoStatusText');
+    if (status) status.textContent = mode === 'work' ? 'Mode Fokus' : 'Waktu Istirahat';
 }
 
 function togglePomoTimer() { if(pomoState.isRunning) pausePomoTimer(); else startPomoTimer(); }
@@ -352,10 +449,13 @@ function startPomoTimer() {
             pausePomoTimer();
             if(pomoState.mode === 'work') { 
                 window.state.pomoCount++; 
-                window.state.pomoMinutes += 25; 
-                window.state.xpPoints += 30; 
+                window.state.pomoMinutes = (Number(window.state.pomoMinutes) || 0) + 25;
+                addXp(30);
                 if(window.saveData) window.saveData(); 
                 showToast("Sesi Fokus Selesai! +30 XP");
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Sesi fokus selesai', { body: 'Bagus! Kamu mendapat 30 XP.' });
+                }
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Haptic
             }
             resetPomoTimer();
@@ -381,9 +481,11 @@ function updatePomoDisplay() {
     const disp = document.getElementById('pomoTimeDisplay');
     if(disp) disp.innerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     
-    const ring = document.getElementById('ringP');
+    const ring = document.getElementById('pomoProgressRing');
     if(ring) {
-        const offset = 283 - (283 * pomoState.timeLeft) / pomoState.timeTotal;
+        const circumference = 2 * Math.PI * 100;
+        ring.style.strokeDasharray = circumference;
+        const offset = circumference * (1 - pomoState.timeLeft / pomoState.timeTotal);
         ring.style.strokeDashoffset = offset;
     }
 }
@@ -463,7 +565,14 @@ function toggleHabitDone(id) {
 
     const index = habit.completedDates.indexOf(todayStr);
     if (index !== -1) habit.completedDates.splice(index, 1);
-    else { habit.completedDates.push(todayStr); window.state.xpPoints += 20; }
+    else {
+        habit.completedDates.push(todayStr);
+        habit.xpAwardedDates ||= [];
+        if (!habit.xpAwardedDates.includes(todayStr)) {
+            habit.xpAwardedDates.push(todayStr);
+            addXp(20);
+        }
+    }
 
     if (window.saveData) window.saveData();
     renderHabits(); renderDashboard();
@@ -506,12 +615,12 @@ function flipCard() {
     const cardEl = document.getElementById('flashcardCard'); 
     isCardFlipped = !isCardFlipped;
     cardEl.classList.toggle('f', isCardFlipped);
-    document.getElementById('flashcardReviewControls').style.display = isCardFlipped ? 'flex' : 'none';
+    document.getElementById('flashcardReviewControls').classList.toggle('hidden', !isCardFlipped);
 }
 function rateFlashcard(difficulty) {
     isCardFlipped = false;
     document.getElementById('flashcardCard').classList.remove('f');
-    document.getElementById('flashcardReviewControls').style.display = 'none';
+    document.getElementById('flashcardReviewControls').classList.add('hidden');
     currentFlashcardIdx++; renderFlashcards();
 }
 function openFlashcardModal() {
@@ -584,5 +693,15 @@ function updateAnalytics() {
 }
 
 window.renderAll = function() {
-    renderCourses(); renderTasks(); renderHabits(); renderFlashcards(); renderExpenses(); updatePomoDisplay(); renderDashboard(); updateAnalytics();
+    window.state = { ...{
+        tasks: [], courses: [], habits: [], flashcards: [], expenses: [],
+        pomoCount: 0, pomoMinutes: 0, currentTaskFilterPriority: 'ALL', xpPoints: 0, coursePomoMap: {}
+    }, ...(window.state || {}) };
+    for (const key of ['tasks', 'courses', 'habits', 'flashcards', 'expenses']) {
+        if (!Array.isArray(window.state[key])) window.state[key] = [];
+    }
+    window.state.xpPoints = Math.max(0, Number(window.state.xpPoints) || 0);
+    window.state.pomoMinutes = Math.max(0, Number(window.state.pomoMinutes) || 0);
+    window.state.pomoCount = Math.max(0, Number(window.state.pomoCount) || 0);
+    renderCourses(); renderTasks(); renderHabits(); renderFlashcards(); calculateBudget(); updatePomoDisplay(); renderDashboard(); updateAnalytics();
 };
