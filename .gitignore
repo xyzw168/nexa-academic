@@ -1,0 +1,18 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+# Firebase admin credentials (never commit these)
+service-account*.json
+*-service-account*.json
+firebase-adminsdk-*.json
+# Local user data and exports
+backup*.json
+*-backup.json
+# Dependencies and local deployment metadata
+node_modules/
+.vercel/
+# Operating system files
+.DS_Store
+Thumbs.db
