@@ -1,58 +1,47 @@
-# ⚡ Nexa — Super Academic & Focus Hub
+# Nexa Academic
 
-> Platform dashboard produktivitas akademik terpadu berbasis **Liquid Glass UI**. Dirancang khusus untuk mahasiswa dalam mengelola tugas kuliah, melatih fokus dengan teknik Pomodoro dan synthesizer suara latar, membangun kebiasaan belajar, mengelola anggaran harian, serta menyinkronkan data antar-perangkat secara otomatis.
+Nexa Academic adalah aplikasi web statis untuk membantu mahasiswa mengatur kegiatan belajar dalam satu dashboard. Aplikasi menyediakan pengelolaan tugas, timer fokus, pencatatan kebiasaan, flashcard, kalkulator anggaran harian, dan ringkasan produktivitas.
 
----
+**Demo:** https://nexa-academic.vercel.app
 
-## 📌 Permasalahan & Solusi
+## Fitur
 
-* **Masalah:** Mahasiswa sering kali kewalahan mengelola tugas kuliah dari banyak mata kuliah, kehilangan fokus saat belajar, tidak konsisten membangun kebiasaan harian, serta risau akan batas aman pengeluaran harian hingga akhir bulan.
-* **Solusi:** **Nexa** hadir sebagai *Super Academic Hub* yang menggabungkan *Task Matrix* (Eisenhower), *Focus Station* (Pomodoro + Suara Alam), *Habit Tracker*, *Flashcards 3D*, *Daily Safe-Spend Calculator*, serta *Cloud Database Sync* berbasis Firebase.
+- **Task Matrix:** status tugas, prioritas, filter mata kuliah, dan subtugas.
+- **Focus Station:** timer Pomodoro dan suara latar yang dibuat menggunakan Web Audio API.
+- **Habit Tracker:** pencatatan kebiasaan dan rangkaian hari belajar.
+- **Flashcards:** kartu belajar dengan animasi balik dan penilaian ingatan.
+- **Daily Safe-Spend:** kalkulasi batas belanja harian.
+- **Analytics:** skor produktivitas dan grafik penyelesaian tugas.
+- **Akun dan sinkronisasi:** Firebase Authentication dan Cloud Firestore.
+- **Cadangan data:** ekspor/impor JSON untuk cadangan lokal.
 
----
+## Teknologi
 
-## ✨ Fitur-Fitur Utama
+HTML, CSS, JavaScript vanilla, Web Audio API, Canvas, Firebase Authentication, Cloud Firestore, dan service worker. Proyek ini menyajikan `index.html` dari folder utama repositori dan tidak memerlukan langkah build khusus.
 
-1. **📋 Eisenhower Task Matrix:**
-   - Pembagian status tugas (*To-Do*, *In Progress*, *Done*).
-   - Filter prioritas (*High*, *Medium*, *Low*) dan Filter Mata Kuliah.
-   - Manajemen subtasks (*anak tugas*) interaktif.
+## Menjalankan di komputer lokal
 
-2. **⏱️ Focus Station & Ambient Sound Synthesizer:**
-   - Timer Pomodoro 25m / 5m / 15m dengan tampilan *Circular Progress Ring SVG*.
-   - **Synthesizer Suara Latar (Web Audio API):** Efek suara Deru Hujan (*Rain*) dan Gelombang Otak Alpha (*10Hz Binaural Beats*) murni yang dihasilkan oleh algoritma browser tanpa file audio eksternal.
+```bash
+git clone https://github.com/xyzw168/nexa-academic.git
+cd nexa-academic
+python -m http.server 8000
+```
 
-3. **🔥 Habit & Study Streak Tracker:**
-   - Pencatat kebiasaan harian otomatis lengkap dengan sistem hitung hari beruntun (*Streak Count*).
+Buka `http://localhost:8000` di browser. Jika Python tidak tersedia, gunakan ekstensi server lokal di VS Code. Fitur yang memakai Firebase mungkin memerlukan konfigurasi dan domain yang diizinkan pada proyek Firebase.
 
-4. **🧠 Smart Flashcards 3D:**
-   - Kartu rangkuman materi dengan efek balik 3D (*3D Flip Animation*) dan evaluasi tingkat kemudahan daya ingat.
+## Deploy ke Vercel
 
-5. **💰 Daily Safe-Spend Calculator:**
-   - Kalkulator finansial harian mahasiswa untuk menghitung batas aman belanja per hari agar alokasi tabungan dan saldo akhir bulan tetap terjaga.
+1. Impor repositori ini di Vercel menggunakan akun GitHub.
+2. Biarkan Vercel mendeteksi pengaturan proyek. Aplikasi adalah situs statis dengan `index.html` di folder utama.
+3. Setelah deployment berstatus **Ready**, buka URL `.vercel.app` dan pastikan aplikasi tampil dengan benar.
+4. Deployment berikutnya berjalan otomatis setelah perubahan di branch yang terhubung di-push ke GitHub.
 
-6. **📊 Analytics & Productivity Score:**
-   - Menghitung Skor Produktivitas harian (0–100 PTS) serta grafik batang penyelesaian tugas menggunakan *HTML5 Canvas*.
+## Alur perubahan
 
-7. **🔐 Firebase Auth, Cloud Sync & Backup JSON:**
-   - **Firebase Authentication & Firestore:** Fitur Login/Daftar Akun dan Edit Profil untuk sinkronisasi data lintas perangkat secara otomatis di cloud.
-   - **Local Backup (JSON Exporter/Importer):** Ekspor dan impor data lokal secara offline tanpa wajib login.
+```bash
+git add .
+git commit -m "deskripsi singkat perubahan"
+git push
+```
 
----
-
-## 🛠️ Teknologi yang Digunakan
-
-* **HTML5 & CSS3:** Tailwind CSS, Glassmorphism Backdrop Filter, Font Awesome 6, & Flexbox/Grid Layout.
-* **JavaScript (Vanilla JS & Web Audio API):** Manipulasi DOM, kalkulasi timer, generator frekuensi suara alam, serta visualisasi grafik *HTML5 Canvas*.
-* **Firebase (v10 SDK Module):** Firebase Authentication & Cloud Firestore Database.
-* **Hosting / Deployment:** Vercel Continuous Deployment.
-
----
-
-## 🚀 Cara Menjalankan Proyek secara Lokal
-
-1. **Clone Repository ini:**
-   ```bash
-   git clone [https://github.com/xyzw168/nexa-academic.git](https://github.com/xyzw168/nexa-academic.git)
-
----
+Pastikan perubahan sudah muncul di GitHub dan deployment Vercel berstatus **Ready**. Jangan memasukkan API key rahasia, token, kata sandi, atau data pribadi ke commit. Baca [SECURITY.md](SECURITY.md) sebelum melaporkan masalah keamanan.
