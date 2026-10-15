@@ -439,58 +439,58 @@ function renderSelectedAgenda() {
 // --- COURSES ---
 function renderCourses() {
     const container = document.getElementById('coursesContainer');
-    if(!container) return;
+    if (!container) return;
     container.innerHTML = '';
     const courses = window.state.courses || [];
-
-    if(courses.length === 0) {
-        container.innerHTML = `<div class="empty" style="grid-column: 1/-1;">Belum ada matkul. Ketuk + untuk menambah.</div>`;
+    if (courses.length === 0) {
+        container.innerHTML = `<div class="course-empty"><span class="course-empty-icon"><i class="fa-solid fa-book-open"></i></span><strong>Belum ada mata kuliah</strong><span>Tambahkan mata kuliah agar jadwal dan tugasmu lebih teratur.</span></div>`;
     }
-
-    courses.forEach(c => {
-        const card = document.createElement('div');
-        card.className = 'glass card';
-        card.style.display = 'flex';
-        card.style.justifyContent = 'space-between';
-        card.style.alignItems = 'center';
+    courses.forEach(course => {
+        const day = course.schedule ? weekdayNames[Number(course.schedule.day)] : '';
+        const schedule = course.schedule
+            ? `${day || ''}${course.schedule.time ? ` · ${escapeHTML(course.schedule.time)}` : ''}${course.schedule.endTime ? `–${escapeHTML(course.schedule.endTime)}` : ''}`
+            : 'Jadwal belum ditambahkan';
+        const card = document.createElement('article');
+        card.className = 'course-card habit-card liquid-glass';
         card.innerHTML = `
-            <div>
-                <div style="font-weight:700;">${escapeHTML(c.name)}</div>
-                <div class="sub">${c.schedule ? `${weekdayNames[Number(c.schedule.day)]} · ${escapeHTML(c.schedule.time || 'Jam belum diatur')}${c.schedule.location ? ` · ${escapeHTML(c.schedule.location)}` : ''}` : 'Jadwal belum ditambahkan'}</div>
+            <div class="habit-card-top course-card-top">
+                <span class="habit-icon course-card-icon"><i class="fa-solid fa-book-open"></i></span>
+                <div class="habit-title-group course-card-copy"><strong>${escapeHTML(course.name)}</strong><small>${escapeHTML(schedule)}</small></div>
+                <div class="course-card-actions course-card-actions-top">
+                    <button type="button" aria-label="Atur jadwal ${escapeHTML(course.name)}" title="Atur jadwal" onclick="openCourseModal(${escapeHTML(JSON.stringify(course.id))})" class="course-action-button"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" aria-label="Hapus mata kuliah ${escapeHTML(course.name)}" title="Hapus mata kuliah" onclick="deleteCourse(${escapeHTML(JSON.stringify(course.id))})" class="course-action-button danger"><i class="fa-solid fa-trash"></i></button>
+                </div>
             </div>
-            <button aria-label="Atur jadwal ${escapeHTML(c.name)}" onclick="openCourseModal(${escapeHTML(JSON.stringify(c.id))})" class="btn sm"><i class="fa-solid fa-pen"></i></button>
-            <button aria-label="Hapus matkul" onclick="deleteCourse(${escapeHTML(JSON.stringify(c.id))})" class="btn sm bad"><i class="fa-solid fa-trash"></i></button>
-        `;
+            <div class="habit-streak-row course-meta-row">
+                <div class="course-detail-item"><i class="fa-solid fa-clock"></i><span>${escapeHTML(schedule)}</span></div>
+                ${course.schedule?.location ? `<div class="course-detail-item"><i class="fa-solid fa-location-dot"></i><span>${escapeHTML(course.schedule.location)}</span></div>` : ''}
+            </div>`;
         container.appendChild(card);
     });
-
     const selects = [document.getElementById('inputTaskCourseSelect'), document.getElementById('courseFilterSelect')];
-    selects.forEach(sel => {
-        if(!sel) return;
-        const isFilter = sel.id === 'courseFilterSelect';
-        sel.innerHTML = isFilter ? `<option value="ALL">Semua Mata Kuliah</option>` : `<option value="Umum">Umum</option>`;
-        courses.forEach(c => {
-            sel.innerHTML += `<option value="${escapeHTML(c.name)}">${escapeHTML(c.name)}</option>`;
-        });
+    selects.forEach(select => {
+        if (!select) return;
+        const isFilter = select.id === 'courseFilterSelect';
+        select.innerHTML = isFilter ? `<option value="ALL">Semua Mata Kuliah</option>` : `<option value="Umum">Umum</option>`;
+        courses.forEach(course => { select.innerHTML += `<option value="${escapeHTML(course.name)}">${escapeHTML(course.name)}</option>`; });
     });
-}
-
-function openCourseModal(courseId = null) {
+}function openCourseModal(courseId = null) {
     const existing = (window.state.courses || []).find(course => course.id === courseId);
     const dayOptions = weekdayNames.map((day, index) => `<option value="${index}" ${Number(existing?.schedule?.day) === index ? 'selected' : ''}>${day}</option>`).join('');
     openSheet(`
-        <h2>${existing ? 'Atur Mata Kuliah' : 'Tambah Mata Kuliah'}</h2>
+        <div class="form-sheet-heading"><span class="form-sheet-icon"><i class="fa-solid fa-book-open"></i></span><div><span class="section-kicker">MATA KULIAH</span><h2>${existing ? 'Atur Mata Kuliah' : 'Tambah Mata Kuliah'}</h2><p>Kelola nama kelas dan jadwal mingguan.</p></div></div>
         <input type="hidden" id="inputCourseId" value="${escapeHTML(courseId || '')}">
-        <div><label>Nama Mata Kuliah</label><input type="text" id="inputCourseName" value="${escapeHTML(existing?.name || '')}" class="in" style="margin-top:4px;" placeholder="Contoh: Pengantar Ekonomi"></div>
-        <div class="course-schedule-fields"><p>Jadwal berulang setiap minggu <span>(opsional)</span></p>
-            <label>Hari</label><select id="inputCourseDay" class="in" style="margin-top:4px;"><option value="">Belum ada jadwal</option>${dayOptions}</select>
-            <div class="course-time-fields"><div><label>Mulai</label><input type="time" id="inputCourseTime" value="${escapeHTML(existing?.schedule?.time || '')}" class="in" style="margin-top:4px;"></div><div><label>Selesai</label><input type="time" id="inputCourseEndTime" value="${escapeHTML(existing?.schedule?.endTime || '')}" class="in" style="margin-top:4px;"></div></div>
-            <label>Ruang / lokasi</label><input type="text" id="inputCourseLocation" value="${escapeHTML(existing?.schedule?.location || '')}" class="in" style="margin-top:4px;" placeholder="Contoh: Gedung B · 204">
+        <div class="course-form-fields">
+            <div class="form-field"><label for="inputCourseName">Nama Mata Kuliah</label><input type="text" id="inputCourseName" value="${escapeHTML(existing?.name || '')}" class="in" placeholder="Contoh: Pengantar Ekonomi"></div>
+            <div class="course-schedule-fields"><p>Jadwal berulang setiap minggu <span>(opsional)</span></p>
+                <div class="form-field"><label for="inputCourseDay">Hari</label><select id="inputCourseDay" class="in"><option value="">Belum ada jadwal</option>${dayOptions}</select></div>
+                <div class="course-time-fields"><div class="form-field"><label for="inputCourseTime">Mulai</label><input type="time" id="inputCourseTime" value="${escapeHTML(existing?.schedule?.time || '')}" class="in"></div><div class="form-field"><label for="inputCourseEndTime">Selesai</label><input type="time" id="inputCourseEndTime" value="${escapeHTML(existing?.schedule?.endTime || '')}" class="in"></div></div>
+                <div class="form-field"><label for="inputCourseLocation">Ruang / lokasi</label><input type="text" id="inputCourseLocation" value="${escapeHTML(existing?.schedule?.location || '')}" class="in" placeholder="Contoh: Gedung B · 204"></div>
+            </div>
         </div>
         <div class="sheet-action-row"><button type="button" onclick="closeSheet()" class="btn">Batal</button><button type="button" onclick="saveCourseModal()" class="btn pri">${existing ? 'Simpan Perubahan' : 'Simpan Mata Kuliah'}</button></div>
     `);
-}
-function saveCourseModal() {
+}function saveCourseModal() {
     const name = document.getElementById('inputCourseName').value.trim(); if(!name) return showToast('Nama mata kuliah belum diisi.');
     if(!window.state.courses) window.state.courses = [];
     const id = document.getElementById('inputCourseId')?.value;
@@ -512,48 +512,44 @@ function deleteCourse(id) {
 // --- TASKS ---
 function renderTasks() {
     const colTodo = document.getElementById('col-todo'), colInProgress = document.getElementById('col-inprogress'), colDone = document.getElementById('col-done');
-    if(!colTodo) return;
+    if (!colTodo) return;
     colTodo.innerHTML = ''; colInProgress.innerHTML = ''; colDone.innerHTML = '';
     let countTodo = 0, countInProgress = 0, countDone = 0;
     const courseFilter = document.getElementById('courseFilterSelect').value;
-
-    const sortedTasks = [...(window.state.tasks || [])].sort((a,b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
-
+    const sortedTasks = [...(window.state.tasks || [])].sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
     sortedTasks.forEach(task => {
-        if(window.state.currentTaskFilterPriority !== 'ALL' && task.priority !== window.state.currentTaskFilterPriority) return;
-        if(courseFilter !== 'ALL' && task.course !== courseFilter) return;
-
-        const card = document.createElement('div');
-        card.className = `task ${task.status === 'done' ? 'done' : ''}`;
+        if (window.state.currentTaskFilterPriority !== 'ALL' && task.priority !== window.state.currentTaskFilterPriority) return;
+        if (courseFilter !== 'ALL' && task.course !== courseFilter) return;
+        const priority = String(task.priority || 'MEDIUM').toLowerCase();
+        const card = document.createElement('article');
+        card.className = `task task-card habit-card liquid-glass ${task.status === 'done' ? 'done' : ''}`;
         card.innerHTML = `
-            <div class="row">
-                <span class="chip">${escapeHTML(task.course || 'Umum')}</span>
-                <span class="sp"></span>
-                <span class="sub" style="font-weight:700; color:${task.priority === 'HIGH' ? 'var(--bad)' : 'var(--warn)'}">${task.priority}</span>
+            <div class="habit-card-top task-card-top">
+                <span class="habit-icon task-card-icon"><i class="fa-solid fa-list-check"></i></span>
+                <div class="habit-title-group task-title-group"><strong>${escapeHTML(task.title)}</strong><span>${escapeHTML(task.course || 'Umum')}</span></div>
+                <span class="priority-pill priority-${priority}"><i class="fa-solid fa-flag"></i>${priority === 'high' ? 'Tinggi' : priority === 'low' ? 'Rendah' : 'Sedang'}</span>
             </div>
-            <div class="t" style="font-weight:700;">${escapeHTML(task.title)}</div>
-            <div class="sub">📅 ${escapeHTML(task.dueDate || 'Tanpa Deadline')}${task.dueTime ? ` · ${escapeHTML(task.dueTime)}` : ''}</div>
-            <div class="row" style="margin-top:4px;">
-                <select aria-label="Status tugas" onchange="updateTaskStatus('${task.id}', this.value)" class="in" style="padding:6px; font-size:12px;">
-                    <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To-Do</option>
-                    <option value="inprogress" ${task.status === 'inprogress' ? 'selected' : ''}>In Progress</option>
-                    <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
+            <div class="habit-streak-row task-meta-row">
+                <div class="task-detail-item"><i class="fa-regular fa-calendar"></i><span>${escapeHTML(task.dueDate || 'Tanpa deadline')}</span></div>
+                ${task.dueTime ? `<div class="task-detail-item"><i class="fa-regular fa-clock"></i><span>${escapeHTML(task.dueTime)}</span></div>` : ''}
+            </div>
+            <div class="task-card-actions">
+                <select aria-label="Status tugas" onchange="updateTaskStatus('${task.id}', this.value)" class="task-status-control">
+                    <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Belum dimulai</option>
+                    <option value="inprogress" ${task.status === 'inprogress' ? 'selected' : ''}>Dikerjakan</option>
+                    <option value="done" ${task.status === 'done' ? 'selected' : ''}>Selesai</option>
                 </select>
-                <button aria-label="Edit tugas ${escapeHTML(task.title)}" onclick="editTask(${escapeHTML(JSON.stringify(task.id))})" class="task-action-button"><i class="fa-solid fa-pen"></i></button>
-                <button aria-label="Hapus tugas ${escapeHTML(task.title)}" onclick="deleteTask(${escapeHTML(JSON.stringify(task.id))})" class="btn sm bad"><i class="fa-solid fa-trash"></i></button>
-            </div>
-        `;
+                <button type="button" aria-label="Edit tugas ${escapeHTML(task.title)}" title="Edit tugas" onclick="editTask(${escapeHTML(JSON.stringify(task.id))})" class="task-action-button"><i class="fa-solid fa-pen"></i></button>
+                <button type="button" aria-label="Hapus tugas ${escapeHTML(task.title)}" title="Hapus tugas" onclick="deleteTask(${escapeHTML(JSON.stringify(task.id))})" class="task-action-button danger"><i class="fa-solid fa-trash"></i></button>
+            </div>`;
         if (task.status === 'todo') { colTodo.appendChild(card); countTodo++; }
         else if (task.status === 'inprogress') { colInProgress.appendChild(card); countInProgress++; }
         else if (task.status === 'done') { colDone.appendChild(card); countDone++; }
     });
-
     document.getElementById('count-todo').innerText = countTodo;
     document.getElementById('count-inprogress').innerText = countInProgress;
     document.getElementById('count-done').innerText = countDone;
-}
-
-function setTaskFilter(type, val, btn) {
+}function setTaskFilter(type, val, btn) {
     window.state.currentTaskFilterPriority = val;
     btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on', 'active'));
     btn.classList.add('on');
@@ -577,26 +573,19 @@ function updateTaskStatus(id, newStatus) {
 function openTaskModal(taskId = '') {
     const task = (window.state.tasks || []).find(item => item.id === taskId);
     let courseOptions = '<option value="Umum">Umum</option>';
-    (window.state.courses || []).forEach(c => courseOptions += `<option value="${escapeHTML(c.name)}" ${task?.course === c.name ? 'selected' : ''}>${escapeHTML(c.name)}</option>`);
-
+    (window.state.courses || []).forEach(course => courseOptions += `<option value="${escapeHTML(course.name)}" ${task?.course === course.name ? 'selected' : ''}>${escapeHTML(course.name)}</option>`);
     openSheet(`
-        <h2>${task ? 'Edit Tugas' : 'Tambah Tugas Baru'}</h2>
+        <div class="form-sheet-heading"><span class="form-sheet-icon task-form-icon"><i class="fa-solid fa-list-check"></i></span><div><span class="section-kicker">TASK MATRIX</span><h2>${task ? 'Edit Tugas' : 'Tambah Tugas Baru'}</h2><p>Atur mata kuliah, deadline, dan prioritas.</p></div></div>
         <input type="hidden" id="editTaskId" value="${task ? escapeHTML(task.id) : ''}">
-        <div><label>Judul Tugas</label><input type="text" id="inputTaskTitle" value="${task ? escapeHTML(task.title) : ''}" class="in" style="margin-top:4px;"></div>
-        <div><label>Mata Kuliah</label><select id="inputTaskCourseSelect" class="in" style="margin-top:4px;">${courseOptions}</select></div>
-        <div class="grid grid-cols-2 gap-2"><div><label>Tanggal Deadline</label><input type="date" id="inputTaskDueDate" value="${task ? escapeHTML(task.dueDate || '') : ''}" class="in" style="margin-top:4px;"></div><div><label>Jam Deadline</label><input type="time" id="inputTaskDueTime" value="${task ? escapeHTML(task.dueTime || '') : ''}" class="in" style="margin-top:4px;"></div></div>
-        <div><label>Prioritas</label>
-            <select id="inputTaskPriority" class="in" style="margin-top:4px;">
-                <option value="HIGH" ${task?.priority === 'HIGH' ? 'selected' : ''}>Tinggi</option>
-                <option value="MEDIUM" ${!task || task.priority === 'MEDIUM' ? 'selected' : ''}>Sedang</option>
-                <option value="LOW" ${task?.priority === 'LOW' ? 'selected' : ''}>Rendah</option>
-            </select>
+        <div class="task-form-fields">
+            <div class="form-field"><label for="inputTaskTitle">Judul Tugas</label><input type="text" id="inputTaskTitle" value="${task ? escapeHTML(task.title) : ''}" class="in" placeholder="Contoh: Makalah bab 1"></div>
+            <div class="form-field"><label for="inputTaskCourseSelect">Mata Kuliah</label><select id="inputTaskCourseSelect" class="in">${courseOptions}</select></div>
+            <div class="task-form-date-grid"><div class="form-field"><label for="inputTaskDueDate">Tanggal Deadline</label><input type="date" id="inputTaskDueDate" value="${task ? escapeHTML(task.dueDate || '') : ''}" class="in"></div><div class="form-field"><label for="inputTaskDueTime">Jam Deadline</label><input type="time" id="inputTaskDueTime" value="${task ? escapeHTML(task.dueTime || '') : ''}" class="in"></div></div>
+            <div class="form-field"><label for="inputTaskPriority">Prioritas</label><select id="inputTaskPriority" class="in"><option value="HIGH" ${task?.priority === 'HIGH' ? 'selected' : ''}>Tinggi</option><option value="MEDIUM" ${!task || task.priority === 'MEDIUM' ? 'selected' : ''}>Sedang</option><option value="LOW" ${task?.priority === 'LOW' ? 'selected' : ''}>Rendah</option></select></div>
         </div>
-        <div class="flex gap-2"><button onclick="closeSheet()" class="btn flex-1">Batal</button><button onclick="saveTaskModal()" class="btn pri flex-1">${task ? 'Simpan Perubahan' : 'Simpan Tugas'}</button></div>
+        <div class="sheet-action-row"><button type="button" onclick="closeSheet()" class="btn">Batal</button><button type="button" onclick="saveTaskModal()" class="btn pri">${task ? 'Simpan Perubahan' : 'Simpan Tugas'}</button></div>
     `);
-}
-
-function editTask(taskId) { openTaskModal(taskId); }
+}function editTask(taskId) { openTaskModal(taskId); }
 
 function saveTaskModal() {
     const title = document.getElementById('inputTaskTitle').value;
