@@ -37,6 +37,7 @@
         }
     </script>
     
+    <!-- Bagian: autentikasi dan data Firebase. -->
     <!-- Firebase SDK (v10 HTML Script Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -132,6 +133,7 @@
     <div class="ambient-glow glow-1"></div>
     <div class="ambient-glow glow-2"></div>
 
+    <!-- Bagian: bilah atas ponsel. -->
     <!-- MOBILE TOP BAR -->
     <header class="md:hidden sticky top-0 z-40 liquid-glass px-4 py-3 flex items-center justify-between border-b border-white/10">
         <div class="flex items-center gap-2.5">
@@ -152,6 +154,7 @@
         </div>
     </header>
 
+    <!-- Bagian: menu samping dan navigasi. -->
     <!-- SIDEBAR DRAWER -->
     <aside id="sidebarDrawer" class="fixed inset-y-0 left-0 z-50 w-72 liquid-glass p-6 flex flex-col justify-between transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative md:flex-shrink-0 md:min-h-screen rounded-r-3xl md:rounded-none">
         <div>
@@ -235,6 +238,7 @@
 
     <div id="drawerOverlay" onclick="toggleMobileDrawer()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden md:hidden"></div>
 
+    <!-- Bagian: halaman utama aplikasi. -->
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full z-10">
         <div class="desktop-quick-controls" aria-label="Kontrol tampilan">
@@ -242,6 +246,7 @@
             <button id="installAppButton" onclick="installNexaApp()" class="quick-control install-quick-control hidden"><i class="fa-solid fa-arrow-down-to-bracket"></i><span>Pasang Nexa</span></button>
         </div>
 
+    <!-- Bagian: ringkasan Home dan kalender. -->
         <!-- DASHBOARD -->
         <section id="tab-dashboard" class="tab-page space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -323,6 +328,7 @@
             </div>
         </section>
 
+    <!-- Bagian: daftar dan prioritas tugas. -->
         <!-- TASK MATRIX -->
         <section id="tab-tasks" class="tab-page hidden space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -375,6 +381,7 @@
             </div>
         </section>
 
+    <!-- Bagian: daftar mata kuliah. -->
         <!-- MATA KULIAH -->
         <section id="tab-courses" class="tab-page hidden space-y-5">
             <div class="flex justify-between items-center">
@@ -387,6 +394,7 @@
             <div id="coursesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </section>
 
+    <!-- Bagian: timer fokus dan audio. -->
         <!-- POMODORO -->
         <section id="tab-pomodoro" class="tab-page hidden space-y-6">
             <div>
@@ -460,6 +468,7 @@
             </div>
         </section>
 
+    <!-- Bagian: pelacak kebiasaan. -->
         <!-- HABIT TRACKER -->
         <section id="tab-habits" class="tab-page hidden space-y-5">
             <div class="flex justify-between items-center">
@@ -472,6 +481,7 @@
             <div id="habitsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </section>
 
+    <!-- Bagian: kartu belajar dan sesi ulasan. -->
         <!-- SMART FLASHCARDS -->
         <section id="tab-flashcards" class="tab-page hidden space-y-5">
             <div class="flex justify-between items-center">
@@ -520,6 +530,7 @@
             </div>
         </section>
 
+    <!-- Bagian: anggaran dan pengeluaran. -->
         <!-- DAILY SAFE-SPEND -->
         <section id="tab-budget" class="tab-page hidden space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -589,6 +600,7 @@
             </div>
         </section>
 
+    <!-- Bagian: statistik progres. -->
         <!-- ANALYTICS -->
         <section id="tab-analytics" class="tab-page hidden space-y-5">
             <h2 class="text-xl font-bold text-white">Analytics & Productivity Breakdown</h2>
@@ -606,6 +618,7 @@
 
     </main>
 
+    <!-- Bagian: navigasi bawah ponsel. -->
     <!-- FLOATING BOTTOM NAV BAR (Dengan Efek Transisi) -->
     <nav id="bottomTabBar" class="md:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 liquid-glass px-2 py-2 flex items-center justify-around text-[10px] font-semibold">
         <button onclick="switchTab('dashboard')" id="bnav-dashboard" class="bnav-item flex flex-col items-center gap-1 text-sky-400 transition-all duration-300 transform scale-110">
@@ -622,6 +635,7 @@
         </button>
     </nav>
 
+    <!-- Bagian: masuk dan pendaftaran. -->
     <!-- AUTH MODAL -->
     <div id="modalAuth" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-[60] p-4">
         <div class="liquid-glass bg-slate-900/90 border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl">
@@ -692,6 +706,7 @@
         </div>
     </div>
 
+    <!-- Bagian: notifikasi dan dialog. -->
     <!-- SHARED SHEET MODAL -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="sheetBg" class="sheet-backdrop" aria-hidden="true" onclick="closeSheet(event)">
