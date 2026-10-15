@@ -694,3 +694,127 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .sheet { padding: 1.05rem; }
   .sheet-action-row { bottom: -1.05rem; }
 }
+/* Task and course cards use the same visual rhythm as Habit Tracker cards. */
+.task-card {
+  display: grid;
+  min-width: 0;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+}
+.task-card-top,
+.course-card-top {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+.task-card-icon { color: var(--accent); }
+.task-title-group { display: grid; min-width: 0; gap: 0.2rem; }
+.task-title-group strong,
+.course-card-copy strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.task-title-group span,
+.course-card-copy small { color: var(--muted); font-size: 0.63rem; line-height: 1.45; overflow-wrap: anywhere; }
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  max-width: 5.6rem;
+  padding: 0.34rem 0.52rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.priority-high { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+.priority-medium { color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--surface)); }
+.priority-low { color: var(--success); background: color-mix(in srgb, var(--success) 10%, var(--surface)); }
+.task-meta-row,
+.course-meta-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+}
+.task-detail-item,
+.course-detail-item {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.63rem;
+  line-height: 1.45;
+}
+.task-detail-item i,
+.course-detail-item i { flex: 0 0 auto; margin-top: 0.08rem; color: var(--accent); }
+.task-detail-item span,
+.course-detail-item span { overflow-wrap: anywhere; }
+.task-card-actions,
+.course-card-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line);
+}
+.task-status-control {
+  min-width: 0;
+  min-height: 2.35rem;
+  flex: 1;
+  padding: 0.4rem 0.55rem;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  font-size: 0.64rem;
+}
+.task-card-actions .task-action-button,
+.course-card-actions .course-action-button { width: 2.35rem; height: 2.35rem; flex: 0 0 auto; }
+.course-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+}
+.course-card .habit-card-top { grid-template-columns: 2.6rem minmax(0, 1fr) auto; }
+.course-card-copy { display: grid; min-width: 0; gap: 0.2rem; }
+.course-card-actions { justify-content: flex-end; }
+.course-action-button {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  font-size: 0.7rem;
+}
+.course-action-button:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.course-action-button.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 9%, var(--surface)); }
+@media (max-width: 420px) {
+  .task-card-top { grid-template-columns: 2.35rem minmax(0, 1fr); }
+  .task-card-top .priority-pill { grid-column: 2; justify-self: start; }
+  .task-card-icon, .course-card .habit-icon { width: 2.35rem; height: 2.35rem; }
+  .task-meta-row, .course-meta-row { align-items: flex-start; flex-direction: column; }
+}
+
+.course-card-actions-top { justify-content: flex-end; gap: 0.35rem; padding: 0; border: 0; }
+.course-card-actions-top .course-action-button { width: 2rem; height: 2rem; }
